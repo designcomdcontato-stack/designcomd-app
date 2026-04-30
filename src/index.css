@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-brand: var(--brand-primary, #4f46e5);
+  --color-brand-secondary: var(--brand-secondary, #818cf8);
+  --color-brand-tertiary: var(--brand-tertiary, #c7d2fe);
+}
+
+@layer base {
+  body {
+    @apply antialiased text-slate-900 bg-slate-50;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Hide spinners for Chrome, Safari, Edge, Opera */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Hide spinners for Firefox */
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+

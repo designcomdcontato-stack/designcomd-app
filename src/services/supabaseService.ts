@@ -1280,39 +1280,95 @@ export const supabaseService = {
     // Explicitly allow the primary admin
     if (email === 'designcomd.contato@gmail.com') return true;
 
-    const { data, error } = await supabase
-      .from('authorized_users')
-      .select('email')
-      .eq('email', email)
-      .maybeSingle();
-    
-    if (error) {
-      console.error('Error checking authorization:', error);
+    try {
+      const { data, error } = await supabase
+        .from('authorized_users')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+      
+      if (error) {
+        this.handleAuthError(error);
+        console.error('Error checking authorization:', error);
+        return false;
+      }
+      
+      return !!data;
+    } catch (err) {
+      this.handleAuthError(err);
       return false;
     }
-    
-    return !!data;
+  },
+
+  // Helper to handle standard auth errors
+  handleAuthError(error: any) {
+    if (!error) return;
+    const msg = error.message || '';
+    if (msg.includes('Refresh Token Not Found') || msg.includes('Refresh Token is invalid') || msg.includes('invalid_grant')) {
+      console.error('Auth error detected, force logout:', msg);
+      this.logout().catch(() => {});
+    }
   },
 
   async login(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        this.handleAuthError(error);
+        throw error;
+      }
+      return data;
+    } catch (err) {
+      this.handleAuthError(err);
+      throw err;
+    }
   },
 
   async logout() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Supabase: Error during signOut:', err);
+    } finally {
+      // Forcefully clear locastorage tokens related to supabase auth if needed
+      try {
+        localStorage.removeItem('supabase.auth.token');
+        // Clear anything starting with sb- (Supabase default)
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('supabase.auth.token') || key.startsWith('sb-'))) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch (e) {}
+    }
   },
 
   async getSession() {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        if (error.message.includes('Refresh Token Not Found') || 
+            error.message.includes('Refresh Token is invalid') ||
+            error.message.includes('invalid_grant')) {
+          console.warn('Supabase: Refresh token lost or invalid. Treating as signed out.');
+          await this.logout();
+          return { session: null };
+        }
+        throw error;
+      }
+      return data;
+    } catch (err: any) {
+      if (err.message?.includes('Refresh Token') || err.message?.includes('invalid_grant')) {
+        await this.logout();
+        return { session: null };
+      }
+      throw err;
+    }
   },
 
   onAuthStateChange(callback: (event: any, session: any) => void) {
@@ -1320,13 +1376,21 @@ export const supabaseService = {
   },
 
   async getAuthorizedUsers(): Promise<string[]> {
-    const { data, error } = await supabase
-      .from('authorized_users')
-      .select('email')
-      .order('created_at');
-    
-    if (error) throw error;
-    return (data || []).map(u => u.email);
+    try {
+      const { data, error } = await supabase
+        .from('authorized_users')
+        .select('email')
+        .order('created_at');
+      
+      if (error) {
+        this.handleAuthError(error);
+        throw error;
+      }
+      return (data || []).map(u => u.email);
+    } catch (err) {
+      this.handleAuthError(err);
+      throw err;
+    }
   },
 
   async addAuthorizedUser(email: string) {

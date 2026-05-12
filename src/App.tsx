@@ -71,11 +71,22 @@ export default function App() {
             setUser({ email: session.user.email });
             setIsAuthenticated(true);
           } else {
+            console.warn('App: User not authorized, logging out');
             await supabaseService.logout();
+            setIsAuthenticated(false);
+            setUser(null);
           }
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Auth initialization error:', err);
+        // If it's a refresh token error, we're essentially signed out
+        if (err.message?.includes('Refresh Token') || err.message?.includes('invalid_grant')) {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
       } finally {
         setIsAuthChecking(false);
         isInitialAuthChecked.current = true;

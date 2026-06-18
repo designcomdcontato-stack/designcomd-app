@@ -24,12 +24,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     setIsLoading(true);
     
     try {
-      await onLogin(email.trim(), password);
+      await onLogin(email.trim().toLowerCase(), password);
       // Success toast is handled here or in App if desired, but toast.success is usually nice here
       toast.success('Bem-vindo de volta!');
     } catch (error: any) {
-      console.error('Login submit error:', error);
-      toast.error(error.message || 'Erro ao realizar login');
+      console.error('Login detailed error:', error);
+      const errorMessage = error.message || 'Erro ao realizar login';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

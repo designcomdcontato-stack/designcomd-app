@@ -596,6 +596,13 @@ export default function App() {
 
   const handleLogin = async (email: string, password: string) => {
     try {
+      // Step 0: Ensure any previous stale session is cleared
+      try {
+        await supabaseService.logout();
+      } catch (e) {
+        // Ignore logout errors during pre-login cleanup
+      }
+
       // Step 1: Real authentication with Supabase
       const { user: supabaseUser } = await supabaseService.login(email, password);
       
@@ -622,9 +629,14 @@ export default function App() {
       setUserPassword(password);
       toast.success('Login realizado com sucesso!');
     } catch (err: any) {
-      console.error('Login error:', err);
-      if (err.message === 'Invalid login credentials' || err.message?.includes('Invalid login credentials')) {
-        throw new Error('E-mail ou senha incorretos.');
+      console.error('Login error details:', err);
+      const isInvalidCredentials = 
+        err.message === 'Invalid login credentials' || 
+        err.message?.includes('Invalid login credentials') ||
+        err.message?.includes('invalid_grant');
+
+      if (isInvalidCredentials) {
+        throw new Error('E-mail ou senha incorretos. Verifique suas credenciais no painel do Supabase.');
       }
       throw err;
     }

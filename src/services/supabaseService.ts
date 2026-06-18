@@ -1318,6 +1318,7 @@ export const supabaseService = {
       });
       
       if (error) {
+        console.warn('Supabase: Login falhou. Dica: Verifique se o usuário existe na aba Authentication > Users no seu painel do Supabase.');
         this.handleAuthError(error);
         throw error;
       }

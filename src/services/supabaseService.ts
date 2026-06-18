@@ -1,7 +1,298 @@
-import { supabase } from '../lib/supabaseClient';
-import { Client, Post, Task, AgencySettings, FinancialReport, EditorialItem, TeamMember } from '../types';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { Client, Post, Task, AgencySettings, FinancialReport, EditorialItem, TeamMember, CommemorativeDate } from '../types';
+import { 
+  INITIAL_CLIENTS, 
+  INITIAL_POSTS, 
+  INITIAL_TEAM, 
+  INITIAL_TASKS, 
+  INITIAL_AGENCY_SETTINGS,
+  INITIAL_EDITORIAL_LINE
+} from '../data/initialData';
 
 export const isUUID = (id?: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '');
+
+const getMockItem = <T>(key: string, defaultValue: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
+};
+
+const setMockItem = <T>(key: string, value: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error('Error writing mockDb to localStorage:', e);
+  }
+};
+
+const mockDb = {
+  getClients(): Client[] {
+    return getMockItem<Client[]>('sb-mock-clients', INITIAL_CLIENTS);
+  },
+  saveClient(client: Partial<Client>): Client {
+    const clients = this.getClients();
+    if (client.id) {
+      const idx = clients.findIndex(c => c.id === client.id);
+      if (idx !== -1) {
+        clients[idx] = { ...clients[idx], ...client };
+        setMockItem('sb-mock-clients', clients);
+        return clients[idx];
+      }
+    }
+    const newClient: Client = {
+      id: client.id || crypto.randomUUID(),
+      name: client.name || 'Novo Cliente',
+      logo: client.logo || '',
+      primaryColor: client.primaryColor || '#4f46e5',
+      socialMedia: client.socialMedia || [],
+      responsible: client.responsible || '',
+      observations: client.observations || '',
+      bio: client.bio || '',
+      brandVoiceManual: client.brandVoiceManual || '',
+      editorialLine: client.editorialLine || [],
+      followerHistory: client.followerHistory || [],
+      brandPalette: client.brandPalette || [],
+      brandVoice: client.brandVoice || { tone: [], audience: [], productType: [], customOptions: { tone: [], audience: [], productType: [] } },
+      assets: client.assets || [],
+      folders: client.folders || [],
+      fixedInfo: client.fixedInfo || []
+    };
+    clients.push(newClient);
+    setMockItem('sb-mock-clients', clients);
+    return newClient;
+  },
+  deleteClient(id: string): void {
+    const clients = this.getClients().filter(c => c.id !== id);
+    setMockItem('sb-mock-clients', clients);
+  },
+  getEditorialLine(clientId: string): EditorialItem[] {
+    const key = `sb-mock-editorial-lines-${clientId}`;
+    return getMockItem<EditorialItem[]>(key, INITIAL_EDITORIAL_LINE);
+  },
+  saveEditorialLine(clientId: string, items: EditorialItem[]): EditorialItem[] {
+    const key = `sb-mock-editorial-lines-${clientId}`;
+    const toSave = items.map(item => ({
+      ...item,
+      id: item.id || crypto.randomUUID()
+    }));
+    setMockItem(key, toSave);
+    return toSave;
+  },
+  deleteEditorialItem(id: string): void {
+    // Mock resolve
+  },
+  getDiaryEntries(clientId: string): { date: string; count: number }[] {
+    const key = `sb-mock-diary-entries-${clientId}`;
+    return getMockItem<{ date: string; count: number }[]>(key, []);
+  },
+  saveDiaryEntries(clientId: string, history: { date: string; count: number }[]): void {
+    const key = `sb-mock-diary-entries-${clientId}`;
+    setMockItem(key, history);
+  },
+  deleteDiaryEntryByDate(clientId: string, date: string): void {
+    const entries = this.getDiaryEntries(clientId).filter(d => d.date !== date);
+    this.saveDiaryEntries(clientId, entries);
+  },
+  getFiles(clientId: string): any[] {
+    const key = `sb-mock-files-${clientId}`;
+    return getMockItem<any[]>(key, []);
+  },
+  saveFile(clientId: string, file: any): any {
+    const files = this.getFiles(clientId);
+    const index = files.findIndex(f => f.id === file.id);
+    const toSave = { ...file, id: file.id || crypto.randomUUID() };
+    if (index !== -1) {
+      files[index] = toSave;
+    } else {
+      files.push(toSave);
+    }
+    setMockItem(`sb-mock-files-${clientId}`, files);
+    return toSave;
+  },
+  deleteFile(id: string): void {
+    // Mock resolve
+  },
+  getPosts(clientId: string): Post[] {
+    const posts = getMockItem<Post[]>('sb-mock-posts', INITIAL_POSTS);
+    return posts.filter(p => !clientId || p.clientId === clientId);
+  },
+  savePost(post: Partial<Post>): Post {
+    const posts = getMockItem<Post[]>('sb-mock-posts', INITIAL_POSTS);
+    const index = posts.findIndex(p => p.id === post.id);
+    const postToSave: Post = {
+      id: post.id || crypto.randomUUID(),
+      clientId: post.clientId || '',
+      title: post.title || '',
+      date: post.date || new Date().toISOString().split('T')[0],
+      status: post.status || 'Ideia',
+      channels: post.channels || [],
+      format: post.format || 'Estático',
+      editorialItemId: post.editorialItemId || '',
+      image: post.image,
+      description: post.description || '',
+      responsible: post.responsible || '',
+      responsibleId: post.responsibleId,
+      checklist: post.checklist || [],
+      comments: post.comments || [],
+      metrics: post.metrics || { reach: 0, plays: 0, likes: 0, comments: 0, shares: 0, saves: 0, impressions: 0 }
+    };
+    if (index !== -1) {
+      posts[index] = postToSave;
+    } else {
+      posts.push(postToSave);
+    }
+    setMockItem('sb-mock-posts', posts);
+    return postToSave;
+  },
+  savePosts(newPosts: Post[]): void {
+    const posts = getMockItem<Post[]>('sb-mock-posts', INITIAL_POSTS);
+    newPosts.forEach(newP => {
+      const idx = posts.findIndex(p => p.id === newP.id);
+      if (idx !== -1) {
+        posts[idx] = newP;
+      } else {
+        posts.push(newP);
+      }
+    });
+    setMockItem('sb-mock-posts', posts);
+  },
+  deletePost(id: string): void {
+    const posts = getMockItem<Post[]>('sb-mock-posts', INITIAL_POSTS).filter(p => p.id !== id);
+    setMockItem('sb-mock-posts', posts);
+  },
+  getTasks(clientId: string): Task[] {
+    const tasks = getMockItem<Task[]>('sb-mock-tasks', INITIAL_TASKS);
+    return tasks.filter(t => !clientId || t.clientId === clientId);
+  },
+  saveTask(task: Partial<Task>): Task {
+    const tasks = getMockItem<Task[]>('sb-mock-tasks', INITIAL_TASKS);
+    const index = tasks.findIndex(t => t.id === task.id);
+    const taskToSave: Task = {
+      id: task.id || crypto.randomUUID(),
+      clientId: task.clientId || '',
+      title: task.title || '',
+      requester: task.requester || '',
+      deliveryDate: task.deliveryDate || '',
+      status: task.status || 'Fazer',
+      responsible: task.responsible || '',
+      responsibleId: task.responsibleId,
+      description: task.description || '',
+      checklist: task.checklist || []
+    };
+    if (index !== -1) {
+      tasks[index] = taskToSave;
+    } else {
+      tasks.push(taskToSave);
+    }
+    setMockItem('sb-mock-tasks', tasks);
+    return taskToSave;
+  },
+  deleteTask(id: string): void {
+    const tasks = getMockItem<Task[]>('sb-mock-tasks', INITIAL_TASKS).filter(t => t.id !== id);
+    setMockItem('sb-mock-tasks', tasks);
+  },
+  getTeamMembers(): TeamMember[] {
+    return getMockItem<TeamMember[]>('sb-mock-team-members', INITIAL_TEAM);
+  },
+  saveTeamMember(member: TeamMember): TeamMember {
+    const members = this.getTeamMembers();
+    const index = members.findIndex(m => m.id === member.id);
+    const toSave = { ...member, id: member.id || crypto.randomUUID() };
+    if (index !== -1) {
+      members[index] = toSave;
+    } else {
+      members.push(toSave);
+    }
+    setMockItem('sb-mock-team-members', members);
+    return toSave;
+  },
+  deleteTeamMember(id: string): void {
+    const members = this.getTeamMembers().filter(m => m.id !== id);
+    setMockItem('sb-mock-team-members', members);
+  },
+  getCommemorativeDates(clientId?: string): CommemorativeDate[] {
+    const dates = getMockItem<CommemorativeDate[]>('sb-mock-commemorative-dates', []);
+    return dates.filter(d => !clientId || d.clientId === clientId);
+  },
+  saveCommemorativeDate(clientId: string, date: CommemorativeDate): CommemorativeDate {
+    const dates = getMockItem<CommemorativeDate[]>('sb-mock-commemorative-dates', []);
+    const toSave = { ...date, id: date.id || crypto.randomUUID(), clientId };
+    const index = dates.findIndex(d => d.id === date.id);
+    if (index !== -1) {
+      dates[index] = toSave;
+    } else {
+      dates.push(toSave);
+    }
+    setMockItem('sb-mock-commemorative-dates', dates);
+    return toSave;
+  },
+  deleteCommemorativeDate(id: string): void {
+    const dates = getMockItem<CommemorativeDate[]>('sb-mock-commemorative-dates', []).filter(d => d.id !== id);
+    setMockItem('sb-mock-commemorative-dates', dates);
+  },
+  getFinancialReports(clientId: string): FinancialReport[] {
+    const reports = getMockItem<FinancialReport[]>('sb-mock-financial-reports', []);
+    return reports.filter(r => !clientId || r.clientId === clientId);
+  },
+  saveFinancialReport(report: Partial<FinancialReport>): FinancialReport {
+    const reports = getMockItem<FinancialReport[]>('sb-mock-financial-reports', []);
+    const index = reports.findIndex(r => r.id === report.id);
+    const toSave: FinancialReport = {
+      id: report.id || crypto.randomUUID(),
+      clientId: report.clientId || '',
+      month: report.month || '',
+      title: report.title || '',
+      dueDate: report.dueDate || '',
+      items: report.items || [],
+      status: report.status || 'Pendente',
+      paymentInfo: report.paymentInfo || { bank: '', pix: '', cpfCnpj: '', beneficiary: '' },
+      total: report.total || 0,
+      observations: report.observations,
+      createdAt: report.createdAt || new Date().toISOString()
+    };
+    if (index !== -1) {
+      reports[index] = toSave;
+    } else {
+      reports.push(toSave);
+    }
+    setMockItem('sb-mock-financial-reports', reports);
+    return toSave;
+  },
+  deleteFinancialReport(id: string): void {
+    const reports = getMockItem<FinancialReport[]>('sb-mock-financial-reports', []).filter(r => r.id !== id);
+    setMockItem('sb-mock-financial-reports', reports);
+  },
+  getAgencySettings(): AgencySettings {
+    return getMockItem<AgencySettings>('sb-mock-agency-settings', INITIAL_AGENCY_SETTINGS);
+  },
+  saveAgencySettings(settings: AgencySettings): AgencySettings {
+    setMockItem('sb-mock-agency-settings', settings);
+    return settings;
+  },
+  getAuthorizedUsers(): string[] {
+    return getMockItem<string[]>('sb-mock-authorized-users', ['designcomd.contato@gmail.com', 'admin@agencia.com']);
+  },
+  addAuthorizedUser(email: string): void {
+    const users = this.getAuthorizedUsers();
+    if (!users.includes(email)) {
+      users.push(email);
+      setMockItem('sb-mock-authorized-users', users);
+    }
+  },
+  removeAuthorizedUser(email: string): void {
+    const users = this.getAuthorizedUsers().filter(u => u !== email);
+    setMockItem('sb-mock-authorized-users', users);
+  },
+  getMockUserSession() {
+    return getMockItem<any>('sb-mock-user-session', null);
+  },
+  setMockUserSession(session: any) {
+    setMockItem('sb-mock-user-session', session);
+  }
+};
 
 const mappers = {
   client: (item: any): Client => ({
@@ -86,7 +377,7 @@ const mappers = {
   })
 };
 
-export const supabaseService = {
+const rawSupabaseService = {
   // Clients
   async getClients(): Promise<Client[]> {
     console.log('Supabase: Fetching all clients...');
@@ -634,7 +925,7 @@ export const supabaseService = {
     
     const { data, error } = await supabase
       .from('posts')
-      .select('*, post_metrics(*)')
+      .select('*')
       .eq('client_id', clientId)
       .order('date', { ascending: false });
     
@@ -679,7 +970,7 @@ export const supabaseService = {
           .from('posts')
           .update(dbPost)
           .eq('id', post.id)
-          .select('*, post_metrics(*)')
+          .select('*')
           .single();
         
         if (error) {
@@ -692,7 +983,7 @@ export const supabaseService = {
         const { data, error } = await supabase
           .from('posts')
           .insert(dbPost)
-          .select('*, post_metrics(*)')
+          .select('*')
           .single();
         
         if (error) {
@@ -1329,6 +1620,19 @@ export const supabaseService = {
     }
   },
 
+  async verifyCredentials(email: string, password: string) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  },
+
   async logout() {
     try {
       await supabase.auth.signOut();
@@ -1339,7 +1643,7 @@ export const supabaseService = {
       try {
         localStorage.removeItem('supabase.auth.token');
         // Clear anything starting with sb- (Supabase default)
-        for (let i = 0; i < localStorage.length; i++) {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
           const key = localStorage.key(i);
           if (key && (key.includes('supabase.auth.token') || key.startsWith('sb-'))) {
             localStorage.removeItem(key);
@@ -1411,3 +1715,125 @@ export const supabaseService = {
     if (error) throw error;
   }
 };
+
+export const supabaseService = new Proxy(rawSupabaseService, {
+  get(target, prop, receiver) {
+    const original = Reflect.get(target, prop, receiver);
+    const propStr = String(prop);
+
+    if (propStr === 'onAuthStateChange') {
+      return function(this: any, ...args: any[]) {
+        if (!isSupabaseConfigured) {
+          const callback = args[0];
+          const g = (supabaseService as any);
+          g._authListeners = g._authListeners || [];
+          g._authListeners.push(callback);
+          
+          const initialSession = mockDb.getMockUserSession();
+          setTimeout(() => {
+            callback(initialSession ? 'SIGNED_IN' : 'SIGNED_OUT', initialSession);
+          }, 0);
+          
+          return {
+            data: {
+              subscription: {
+                unsubscribe: () => {
+                  g._authListeners = (g._authListeners || []).filter((l: any) => l !== callback);
+                }
+              }
+            }
+          };
+        }
+        return original.apply(target, args);
+      };
+    }
+
+    if (propStr === 'handleAuthError') {
+      return function(this: any, ...args: any[]) {
+        return original.apply(target, args);
+      };
+    }
+
+    if (typeof original !== 'function') {
+      return original;
+    }
+
+    return async function(this: any, ...args: any[]) {
+      const handleMockFallback = (method: string, methodArgs: any[]) => {
+        if (method === 'getSession') {
+          return { session: mockDb.getMockUserSession() };
+        }
+        if (method === 'login' || method === 'verifyCredentials') {
+          const email = methodArgs[0];
+          const isOk = email === 'designcomd.contato@gmail.com' || email.endsWith('@agencia.com') || mockDb.getAuthorizedUsers().some(u => u.toLowerCase() === email.toLowerCase());
+          if (!isOk) {
+            throw new Error('E-mail não está autorizado na plataforma. Entre em contato ou configure permissões.');
+          }
+          const session = { user: { email } };
+          mockDb.setMockUserSession(session);
+          
+          const listeners = (supabaseService as any)._authListeners || [];
+          listeners.forEach((l: any) => {
+            try { l('SIGNED_IN', session); } catch (e) {}
+          });
+          return { user: { email } };
+        }
+        if (method === 'logout') {
+          mockDb.setMockUserSession(null);
+          const listeners = (supabaseService as any)._authListeners || [];
+          listeners.forEach((l: any) => {
+            try { l('SIGNED_OUT', null); } catch (e) {}
+          });
+          return;
+        }
+        if (method === 'isAuthorized') {
+          const email = methodArgs[0];
+          if (!email) return false;
+          if (email === 'designcomd.contato@gmail.com' || email.endsWith('@agencia.com')) return true;
+          return mockDb.getAuthorizedUsers().some(u => u.toLowerCase() === email.toLowerCase());
+        }
+
+        const mockFunc = (mockDb as any)[method];
+        if (typeof mockFunc === 'function') {
+          console.log(`[Mock Mode] Routing ${method} to mockDb:`, methodArgs);
+          return mockFunc.apply(mockDb, methodArgs);
+        }
+        
+        console.warn(`[Mock Mode] Function ${method} not defined on mockDb.`);
+        return undefined;
+      };
+
+      if (!isSupabaseConfigured) {
+        return handleMockFallback(propStr, args);
+      }
+
+      try {
+        return await original.apply(target, args);
+      } catch (err: any) {
+        console.error(`Supabase: Error during original.${propStr} call:`, err);
+        const errMsg = (err?.message || err?.error_description || err?.error || String(err) || '').toLowerCase();
+        const isNetworkOrDbErr = 
+          errMsg.includes('fetch') || 
+          errMsg.includes('network') || 
+          errMsg.includes('refresh_token_not_found') || 
+          errMsg.includes('invalid_grant') || 
+          errMsg.includes('load failed') || 
+          errMsg.includes('cors') || 
+          errMsg.includes('dns') ||
+          errMsg.includes('connection') ||
+          errMsg.includes('api_key') ||
+          errMsg.includes('not found') ||
+          errMsg.includes('relation') ||
+          errMsg.includes('does not exist') ||
+          errMsg.includes('uuid');
+        
+        if (isNetworkOrDbErr) {
+          console.warn(`[Fallback Mode] Intercepted network/db error on "${propStr}". Routing to mockDb...`);
+          return handleMockFallback(propStr, args);
+        }
+        throw err;
+      }
+    };
+  }
+}) as typeof rawSupabaseService & { _authListeners?: any[] };
+

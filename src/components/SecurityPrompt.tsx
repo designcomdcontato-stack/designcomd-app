@@ -8,26 +8,37 @@ interface SecurityPromptProps {
   onConfirm: () => void;
   onCancel: () => void;
   targetName: string;
+  onVerifyPassword?: (password: string) => Promise<boolean>;
 }
 
-export function SecurityPrompt({ correctPassword, onConfirm, onCancel, targetName }: SecurityPromptProps) {
+export function SecurityPrompt({ correctPassword, onConfirm, onCancel, targetName, onVerifyPassword }: SecurityPromptProps) {
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
 
-    // Minor delay for feel
-    setTimeout(() => {
-      if (password === correctPassword) {
+    try {
+      let isCorrect = false;
+      if (onVerifyPassword) {
+        isCorrect = await onVerifyPassword(password);
+      } else {
+        isCorrect = password === correctPassword;
+      }
+
+      if (isCorrect) {
         onConfirm();
       } else {
         toast.error('Senha incorreta. Tente novamente.');
         setPassword('');
         setIsVerifying(false);
       }
-    }, 800);
+    } catch (err) {
+      console.error('Password re-auth error:', err);
+      toast.error('Erro ao verificar senha. Tente novamente.');
+      setIsVerifying(false);
+    }
   };
 
   return (

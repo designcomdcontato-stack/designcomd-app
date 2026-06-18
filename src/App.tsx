@@ -347,6 +347,29 @@ export default function App() {
     }
   };
 
+  const handleVerifyPassword = async (password: string): Promise<boolean> => {
+    // If we have a password cached and it matches, let it through
+    if (userPassword && password === userPassword) {
+      return true;
+    }
+    
+    // Otherwise, do a live Supabase verify credentials call
+    if (user?.email) {
+      try {
+        console.log('App: Verifying re-authorization credentials with Supabase...');
+        const data = await supabaseService.verifyCredentials(user.email, password);
+        if (data?.user?.email) {
+          // Cache correct password
+          setUserPassword(password);
+          return true;
+        }
+      } catch (err) {
+        console.warn('App: Credential re-verification failed:', err);
+      }
+    }
+    return false;
+  };
+
   const handleUpdateEditorial = async (items: EditorialItem[]) => {
     if (!activeClient) return;
     try {
@@ -645,11 +668,14 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await supabaseService.logout();
-      setIsClientSwitchUnlocked(false);
-      toast.info('Você saiu da sua conta.');
     } catch (err) {
       console.error('Logout error:', err);
-      toast.error('Erro ao sair da conta');
+    } finally {
+      setIsClientSwitchUnlocked(false);
+      setIsAuthenticated(false);
+      setUser(null);
+      setUserPassword('');
+      toast.info('Você saiu da sua conta.');
     }
   };
 
@@ -1112,6 +1138,7 @@ export default function App() {
                   correctPassword={userPassword}
                   targetName={pendingClient ? pendingClient.name : (pendingTab === 'profiles' ? 'Perfis' : 'Seletor de Clientes')}
                   onConfirm={confirmSwitch}
+                  onVerifyPassword={handleVerifyPassword}
                   onCancel={() => {
                     setIsSecurityPromptOpen(false);
                     setPendingClient(null);

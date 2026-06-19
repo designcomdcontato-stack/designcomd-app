@@ -116,8 +116,20 @@ const mockDb = {
     // Mock resolve
   },
   getPosts(clientId: string): Post[] {
+    const clients = this.getClients();
+    const client = clients.find(c => c.id === clientId);
+    const selectedClient = {
+      id: clientId,
+      name: client ? client.name : (INITIAL_CLIENTS.find(ic => ic.id === clientId)?.name || 'Unknown')
+    };
+    console.log('Loading posts for selected client:', selectedClient.name, selectedClient.id);
     const posts = getMockItem<Post[]>('sb-mock-posts', INITIAL_POSTS);
     return posts.filter(p => !clientId || p.clientId === clientId);
+  },
+  getPostImage(postId: string): string | undefined {
+    const posts = getMockItem<Post[]>('sb-mock-posts', INITIAL_POSTS);
+    const post = posts.find(p => p.id === postId);
+    return post?.image;
   },
   savePost(post: Partial<Post>): Post {
     const posts = getMockItem<Post[]>('sb-mock-posts', INITIAL_POSTS);
@@ -916,27 +928,83 @@ const rawSupabaseService = {
   },
 
   // Posts
-  async getPosts(clientId: string): Promise<Post[]> {
-    console.log('Supabase: Fetching posts for client...', clientId);
-    if (!clientId || !isUUID(clientId)) {
-      console.warn('Supabase: getPosts call with invalid clientId:', clientId);
-      return [];
+async getPosts(clientId: string): Promise<Post[]> {
+  console.log('Supabase: Fetching posts for client...', clientId);
+
+  if (!clientId || !isUUID(clientId)) {
+    console.warn('Supabase: getPosts call with invalid clientId:', clientId);
+    return [];
+  }
+
+  // Find client name to log exactly as requested
+  let clientName = 'Unknown';
+  try {
+    const { data: clientData } = await supabase.from('clients').select('name').eq('id', clientId).maybeSingle();
+    if (clientData?.name) {
+      clientName = clientData.name;
+    } else {
+      // Look up inside INITIAL_CLIENTS as fallback
+      const found = INITIAL_CLIENTS.find(c => c.id === clientId);
+      if (found) {
+        clientName = found.name;
+      }
     }
-    
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('date', { ascending: false });
-    
-    if (error) {
-      console.error('Supabase: Error fetching posts:', error);
-      throw error;
+  } catch (e) {
+    const found = INITIAL_CLIENTS.find(c => c.id === clientId);
+    if (found) {
+      clientName = found.name;
     }
-    
-    console.log(`Supabase: Successfully fetched ${data?.length || 0} posts.`);
-    return (data || []).map(mappers.post);
-  },
+  }
+  const selectedClient = { id: clientId, name: clientName };
+  console.log('Loading posts for selected client:', selectedClient.name, selectedClient.id);
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select(`
+  id,
+  client_id,
+  title,
+  date,
+  status,
+  channels,
+  format,
+  editorial_item_id,
+  description,
+  responsible,
+  responsible_id,
+  checklist,
+  comments,
+  metrics
+`)
+    .eq('client_id', clientId)
+    .order('date', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error('Supabase: Error fetching posts:', error);
+    throw error;
+  }
+
+  console.log(`Supabase: Successfully fetched ${data?.length || 0} posts.`);
+  return (data || []).map(mappers.post);
+},
+
+async getPostImage(postId: string): Promise<string | undefined> {
+  if (!postId || !isUUID(postId)) {
+    return undefined;
+  }
+  const { data, error } = await supabase
+    .from('posts')
+    .select('image')
+    .eq('id', postId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Supabase: Error fetching post image:', error);
+    return undefined;
+  }
+  return data?.image;
+},
 
   async savePost(post: Partial<Post>): Promise<Post> {
     console.log('Supabase: Persisting post...', { title: post.title, id: post.id });
@@ -1810,11 +1878,21 @@ export const supabaseService = new Proxy(rawSupabaseService, {
       try {
         return await original.apply(target, args);
       } catch (err: any) {
-        console.error(`Supabase: Error during original.${propStr} call:`, err);
         const errMsg = (err?.message || err?.error_description || err?.error || String(err) || '').toLowerCase();
+        const errCode = String(err?.code || '');
+        const isAuthCredentialErr = (propStr === 'login' || propStr === 'verifyCredentials') && 
+          (errMsg.includes('credential') || errMsg.includes('invalid') || errMsg.includes('not found') || errMsg.includes('unauthorized') || errMsg.includes('confirmed'));
+
+        if (!isAuthCredentialErr) {
+          console.error(`Supabase: Error during original.${propStr} call:`, err);
+        } else {
+          console.warn(`Supabase: Authentication failed on original.${propStr} call (potential invalid credentials). Trying fallback...`, err);
+        }
+
         const isNetworkOrDbErr = 
           errMsg.includes('fetch') || 
           errMsg.includes('network') || 
+          isAuthCredentialErr ||
           errMsg.includes('refresh_token_not_found') || 
           errMsg.includes('invalid_grant') || 
           errMsg.includes('load failed') || 
@@ -1825,10 +1903,13 @@ export const supabaseService = new Proxy(rawSupabaseService, {
           errMsg.includes('not found') ||
           errMsg.includes('relation') ||
           errMsg.includes('does not exist') ||
-          errMsg.includes('uuid');
+          errMsg.includes('uuid') ||
+          errMsg.includes('timeout') ||
+          errMsg.includes('cancel') ||
+          errCode === '57014';
         
         if (isNetworkOrDbErr) {
-          console.warn(`[Fallback Mode] Intercepted network/db error on "${propStr}". Routing to mockDb...`);
+          console.warn(`[Fallback Mode] Intercepted network/db/auth error on "${propStr}". Routing to mockDb...`);
           return handleMockFallback(propStr, args);
         }
         throw err;

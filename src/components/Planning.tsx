@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Post, Client, PostStatus, PostFormat, PostChannel } from '../types';
 import { cn, formatDate } from '../lib/utils';
+import { PostLazyImage } from './PostLazyImage';
 import { 
   format, 
   startOfMonth, 
@@ -152,13 +153,11 @@ export function Planning({ client, posts, onAddPost, onEditPost }: PlanningProps
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200">
-                        {post.image ? (
-                          <img src={post.image} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-400">
-                            <ImageIcon size={20} />
-                          </div>
-                        )}
+                        <PostLazyImage
+                          postId={post.id}
+                          className="w-full h-full object-cover"
+                          fallback={<ImageIcon size={20} />}
+                        />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{post.title}</p>

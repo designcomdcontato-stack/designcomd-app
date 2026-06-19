@@ -19,8 +19,8 @@ export const INITIAL_EDITORIAL_LINE: EditorialItem[] = [
 
 export const INITIAL_CLIENTS: Client[] = [
   {
-    id: '80808080-8080-4080-a080-808080808001',
-    name: 'Restaurante Sabor & Arte',
+    id: '311add11-8c44-4217-b478-5e22df02accf',
+    name: 'Predileto Restaurante',
     logo: 'https://picsum.photos/seed/restaurant/200',
     primaryColor: '#e11d48',
     socialMedia: ['Instagram', 'Facebook'],
@@ -40,8 +40,8 @@ export const INITIAL_CLIENTS: Client[] = [
     ]
   },
   {
-    id: '80808080-8080-4080-a080-808080808002',
-    name: 'Tech Solutions',
+    id: '5d7b81cc-1efa-4ed9-aaa6-f5a44a97ecb3',
+    name: 'SimpleCcon',
     logo: 'https://picsum.photos/seed/tech/200',
     primaryColor: '#2563eb',
     socialMedia: ['Instagram', 'LinkedIn'],
@@ -69,7 +69,7 @@ export const INITIAL_TEAM: TeamMember[] = [
 export const INITIAL_POSTS: Post[] = [
   {
     id: '8a8a8a8a-8a8a-4a8a-aa8a-8a8a8a8a8a01',
-    clientId: '80808080-8080-4080-a080-808080808001',
+    clientId: '311add11-8c44-4217-b478-5e22df02accf',
     title: 'Dica de Alimentação Saudável',
     date: '2026-03-26',
     status: 'Criando',
@@ -88,7 +88,7 @@ export const INITIAL_POSTS: Post[] = [
   },
   {
     id: '8a8a8a8a-8a8a-4a8a-aa8a-8a8a8a8a8a02',
-    clientId: '80808080-8080-4080-a080-808080808001',
+    clientId: '311add11-8c44-4217-b478-5e22df02accf',
     title: 'Prato do Dia: Risoto de Alho Poró',
     date: '2026-03-25',
     status: 'Postado',
@@ -107,7 +107,7 @@ export const INITIAL_POSTS: Post[] = [
 export const INITIAL_TASKS: Task[] = [
   {
     id: '9b9b9b9b-9b9b-4b9b-ab9b-9b9b9b9b9b01',
-    clientId: '80808080-8080-4080-a080-808080808001',
+    clientId: '311add11-8c44-4217-b478-5e22df02accf',
     title: 'Manual de Identidade Visual',
     requester: 'Ana Silva',
     deliveryDate: '2026-03-28',
@@ -121,7 +121,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: '9b9b9b9b-9b9b-4b9b-ab9b-9b9b9b9b9b02',
-    clientId: '80808080-8080-4080-a080-808080808001',
+    clientId: '311add11-8c44-4217-b478-5e22df02accf',
     title: 'Campanha de Páscoa',
     requester: 'Ana Silva',
     deliveryDate: '2026-04-10',
@@ -132,7 +132,7 @@ export const INITIAL_TASKS: Task[] = [
   },
   {
     id: '9b9b9b9b-9b9b-4b9b-ab9b-9b9b9b9b9b03',
-    clientId: '80808080-8080-4080-a080-808080808002',
+    clientId: '5d7b81cc-1efa-4ed9-aaa6-f5a44a97ecb3',
     title: 'Newsletter Mensal',
     requester: 'Bruno Costa',
     deliveryDate: '2026-04-05',

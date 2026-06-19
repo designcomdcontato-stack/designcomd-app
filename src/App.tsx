@@ -265,9 +265,24 @@ export default function App() {
       return;
     }
 
+    // MANDATORY RULE 9: Clear old client data immediately to prevent showing previous client's details during load
+    setPosts([]);
+    setTasks([]);
+    setFinancialReports([]);
+    
+    // Switch the container active client shell immediately for instant visual response
+    setActiveClient({
+      ...client,
+      editorialLine: [],
+      followerHistory: [],
+      assets: []
+    });
+
     try {
       setIsLoading(true);
-      console.log(`App: Loading full details for client ${client.name}...`);
+      // MANDATORY RULE 5: Log the specified format: console.log('Loading posts for selected client:', selectedClient.name, selectedClient.id) 
+      const selectedClient = client;
+      console.log('Loading posts for selected client:', selectedClient.name, selectedClient.id);
       
       // Fetch separate table data filtered by client_id
       const [editorial, diary, files, dbPosts, dbTasks, dbDates, dbReports] = await Promise.all([

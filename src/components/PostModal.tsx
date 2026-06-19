@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Post, Client, PostStatus, PostFormat, EditorialItem, TeamMember } from '../types';
 import { cn, generateTempId } from '../lib/utils';
+import { supabaseService } from '../services/supabaseService';
 
 interface PostModalProps {
   post: Post;
@@ -43,6 +44,22 @@ export function PostModal({ post, client, team, onClose, onSave, onDelete }: Pos
     }
     return { ...post };
   });
+
+  React.useEffect(() => {
+    let active = true;
+    if (post.id && !editedPost.image) {
+      supabaseService.getPostImage(post.id).then(img => {
+        if (active && img) {
+          setEditedPost(prev => ({ ...prev, image: img }));
+        }
+      }).catch(err => {
+        console.warn('PostModal: failed to load lazy image:', err);
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [post.id]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [newComment, setNewComment] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);

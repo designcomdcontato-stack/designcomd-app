@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Post, Client } from '../types';
 import { cn, formatDate } from '../lib/utils';
 import { Heart, MessageCircle, Share2, Bookmark, Play, Edit2, Check, X } from 'lucide-react';
+import { PostLazyImage } from './PostLazyImage';
 
 interface FeedViewProps {
   client: Client;
@@ -147,13 +148,15 @@ export function FeedView({ client, posts, onEditPost, onUpdateClient }: FeedView
 
               {/* Post Image/Video Placeholder */}
               <div className="aspect-square bg-slate-100 relative overflow-hidden">
-                {post.image ? (
-                  <img src={post.image} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-300">
-                    <Play size={48} />
-                  </div>
-                )}
+                <PostLazyImage
+                  postId={post.id}
+                  className="w-full h-full object-cover"
+                  fallback={
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      <Play size={48} />
+                    </div>
+                  }
+                />
                 {post.format === 'Reels' && (
                   <div className="absolute top-2 right-2 p-1.5 bg-black/20 backdrop-blur-md rounded-lg text-white">
                     <Play size={14} fill="white" />

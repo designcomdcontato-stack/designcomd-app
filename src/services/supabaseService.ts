@@ -182,12 +182,14 @@ const mockDb = {
   saveTask(task: Partial<Task>): Task {
     const tasks = getMockItem<Task[]>('sb-mock-tasks', INITIAL_TASKS);
     const index = tasks.findIndex(t => t.id === task.id);
+    const defaultCreatedAt = task.createdAt || (index !== -1 ? tasks[index]?.createdAt : undefined) || new Date().toISOString();
     const taskToSave: Task = {
       id: task.id || crypto.randomUUID(),
       clientId: task.clientId || '',
       title: task.title || '',
       requester: task.requester || '',
       deliveryDate: task.deliveryDate || '',
+      createdAt: defaultCreatedAt,
       status: task.status || 'Fazer',
       responsible: task.responsible || '',
       responsibleId: task.responsibleId,
@@ -368,6 +370,7 @@ const mappers = {
     title: item.title,
     requester: item.requester,
     deliveryDate: item.delivery_date,
+    createdAt: item.created_at || item.createdAt,
     status: item.status as any,
     responsible: item.responsible,
     responsibleId: item.responsible_id,
@@ -1198,6 +1201,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
       title: task.title,
       requester: task.requester,
       delivery_date: task.deliveryDate,
+      created_at: task.createdAt || new Date().toISOString(),
       status: task.status,
       responsible: task.responsible,
       description: task.description,

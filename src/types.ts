@@ -155,6 +155,7 @@ export interface Task {
   title: string;
   requester: string;
   deliveryDate: string;
+  createdAt?: string;
   status: TaskStatus;
   responsible: string;
   responsibleId?: string;

@@ -13,11 +13,14 @@ import {
   ChevronRight,
   Filter,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  ArrowDownAZ,
+  ArrowUpZA
 } from 'lucide-react';
 import { Task, Client, TaskStatus, TeamMember } from '../types';
 import { cn, formatDate, generateTempId } from '../lib/utils';
 import { supabase } from '../lib/supabaseClient';
+import { TaskDeadlineClock } from './TaskDeadlineClock';
 import { 
   format, 
   startOfMonth, 
@@ -46,8 +49,9 @@ export function TasksPage({ client, tasks, setTasks, team, onAddTask, onUpdateTa
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [statusSortOrder, setStatusSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
 
-  const clientTasks = (tasks || []).filter(t => {
+  const filteredTasks = (tasks || []).filter(t => {
     if (t.clientId !== client.id) return false;
     
     const taskDate = parseISO(t.deliveryDate);
@@ -56,6 +60,29 @@ export function TasksPage({ client, tasks, setTasks, team, onAddTask, onUpdateTa
       end: endOfMonth(selectedDate)
     });
   });
+
+  const clientTasks = [...filteredTasks].sort((a, b) => {
+    if (statusSortOrder === 'asc') {
+      return a.status.localeCompare(b.status, 'pt-BR');
+    }
+    if (statusSortOrder === 'desc') {
+      return b.status.localeCompare(a.status, 'pt-BR');
+    }
+    return 0;
+  });
+
+  const handleToggleStatusSort = () => {
+    if (statusSortOrder === 'none') {
+      setStatusSortOrder('asc');
+      toast.info('Status ordenados de A a Z');
+    } else if (statusSortOrder === 'asc') {
+      setStatusSortOrder('desc');
+      toast.info('Status ordenados de Z a A');
+    } else {
+      setStatusSortOrder('none');
+      toast.info('Ordem de data de entrega restaurada');
+    }
+  };
 
   const getStatusColor = (status: TaskStatus) => {
     switch (status) {
@@ -134,6 +161,34 @@ export function TasksPage({ client, tasks, setTasks, team, onAddTask, onUpdateTa
           </div>
 
           <button 
+            onClick={handleToggleStatusSort}
+            title={
+              statusSortOrder === 'asc'
+                ? 'Status ordenados A-Z (Clique para Z-A)'
+                : statusSortOrder === 'desc'
+                ? 'Status ordenados Z-A (Clique para limpar)'
+                : 'Organizar status em ordem alfabética'
+            }
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all shadow-sm",
+              statusSortOrder !== 'none'
+                ? "bg-slate-900 text-white border-slate-900 shadow-slate-900/10 hover:bg-slate-800"
+                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+            )}
+          >
+            {statusSortOrder === 'desc' ? (
+              <ArrowUpZA size={16} className="text-brand-light" />
+            ) : (
+              <ArrowDownAZ size={16} className={statusSortOrder === 'asc' ? 'text-brand-light' : 'text-slate-500'} />
+            )}
+            <span>
+              {statusSortOrder === 'asc' && 'Status (A-Z)'}
+              {statusSortOrder === 'desc' && 'Status (Z-A)'}
+              {statusSortOrder === 'none' && 'Status A-Z'}
+            </span>
+          </button>
+
+          <button 
             onClick={() => handleOpenModal()}
             className="flex items-center justify-center gap-2 bg-brand hover:opacity-90 text-white px-4 py-2 rounded-xl font-semibold transition-all shadow-lg shadow-brand/20"
           >
@@ -151,7 +206,17 @@ export function TasksPage({ client, tasks, setTasks, team, onAddTask, onUpdateTa
                 <th className="px-6 py-4 font-bold">Tarefa / Projeto</th>
                 <th className="px-6 py-4 font-bold">Solicitante</th>
                 <th className="px-6 py-4 font-bold">Entrega</th>
-                <th className="px-6 py-4 font-bold min-w-[150px]">Status</th>
+                <th 
+                  onClick={handleToggleStatusSort}
+                  className="px-6 py-4 font-bold min-w-[150px] cursor-pointer hover:bg-slate-100/80 transition-colors group/th"
+                  title="Clique para ordenar por status"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Status</span>
+                    {statusSortOrder === 'asc' && <ArrowDownAZ size={14} className="text-brand" />}
+                    {statusSortOrder === 'desc' && <ArrowUpZA size={14} className="text-brand" />}
+                  </div>
+                </th>
                 <th className="px-6 py-4 font-bold">Progresso</th>
                 <th className="px-6 py-4 font-bold">Responsável</th>
                 <th className="px-6 py-4 font-bold text-right">Ações</th>
@@ -184,10 +249,11 @@ export function TasksPage({ client, tasks, setTasks, team, onAddTask, onUpdateTa
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Calendar size={14} className="text-slate-400" />
-                      {formatDate(task.deliveryDate)}
-                    </div>
+                    <TaskDeadlineClock
+                      createdAt={task.createdAt}
+                      deliveryDate={task.deliveryDate}
+                      status={task.status}
+                    />
                   </td>
                   <td className="px-6 py-4">
                     <span className={cn(
@@ -342,6 +408,7 @@ function TaskModal({ isOpen, onClose, onSave, task, team, onRefresh }: TaskModal
       setFormData({
         title: '',
         requester: '',
+        createdAt: new Date().toISOString(),
         deliveryDate: format(new Date(), 'yyyy-MM-dd'),
         status: 'Fazer',
         responsible: '',
@@ -442,17 +509,30 @@ function TaskModal({ isOpen, onClose, onSave, task, team, onRefresh }: TaskModal
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Data da Entrega</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Data de Abertura (Automática)</label>
+                    <div className="flex items-center gap-2 bg-slate-100/80 border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-600 font-medium">
+                      <Clock size={16} className="text-slate-400" />
+                      <span>{formatDate(formData.createdAt || new Date().toISOString())}</span>
+                      <span className="ml-auto text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md">
+                        Auto
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Data da Entrega*</label>
                     <div className="relative">
                       <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
                         type="date"
                         value={formData.deliveryDate}
                         onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all font-semibold"
                       />
                     </div>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Responsável</label>
                     <input 
@@ -462,6 +542,16 @@ function TaskModal({ isOpen, onClose, onSave, task, team, onRefresh }: TaskModal
                       className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all font-bold"
                       placeholder="Nome do responsável"
                     />
+                  </div>
+                  <div className="space-y-2 flex flex-col justify-end">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Relógio de Prazo</label>
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 flex items-center justify-between">
+                      <TaskDeadlineClock
+                        createdAt={formData.createdAt || new Date().toISOString()}
+                        deliveryDate={formData.deliveryDate}
+                        status={formData.status || 'Fazer'}
+                      />
+                    </div>
                   </div>
                 </div>
 

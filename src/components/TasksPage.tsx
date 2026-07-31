@@ -328,6 +328,10 @@ export function TasksPage({ client, tasks, setTasks, team, onAddTask, onUpdateTa
           }
           setIsModalOpen(false);
         }}
+        onDelete={(id) => {
+          onDeleteTask(id);
+          setIsModalOpen(false);
+        }}
         task={editingTask}
         team={team}
         onRefresh={onRefresh}
@@ -340,13 +344,13 @@ interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Partial<Task>) => void;
+  onDelete?: (id: string) => void;
   task: Task | null;
   team: TeamMember[];
   onRefresh?: () => void;
 }
 
-function TaskModal({ isOpen, onClose, onSave, task, team, onRefresh }: TaskModalProps) {
-  console.log("RENDERIZANDO TASKMODAL. Task:", task?.id, "isOpen:", isOpen);
+function TaskModal({ isOpen, onClose, onSave, onDelete, task, team, onRefresh }: TaskModalProps) {
   const [formData, setFormData] = useState<Partial<Task>>(
     task || {
       title: '',
@@ -362,42 +366,9 @@ function TaskModal({ isOpen, onClose, onSave, task, team, onRefresh }: TaskModal
   const [newChecklistItem, setNewChecklistItem] = useState('');
 
   const handleDeleteTask = async () => {
-    console.log("CLIQUE NO BOTÃO FUNCIONOU");
-    console.log("BOTÃO DELETE CLICADO");
-
-    if (!task?.id) {
-      alert("Task sem ID");
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", task.id)
-        .select();
-
-      console.log("DELETE RESULT:", { data, error });
-
-      if (error) {
-        alert("Erro ao excluir: " + error.message);
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        alert("Nenhuma tarefa foi deletada.");
-        return;
-      }
-
-      alert("Tarefa excluída com sucesso");
-      onClose();
-      
-      if (onRefresh) {
-        onRefresh();
-      }
-    } catch (err: any) {
-      console.error("ERRO:", err);
-      alert("Erro ao excluir");
+    if (!task?.id) return;
+    if (onDelete) {
+      onDelete(task.id);
     }
   };
 

@@ -182,19 +182,20 @@ const mockDb = {
   saveTask(task: Partial<Task>): Task {
     const tasks = getMockItem<Task[]>('sb-mock-tasks', INITIAL_TASKS);
     const index = tasks.findIndex(t => t.id === task.id);
-    const defaultCreatedAt = task.createdAt || (index !== -1 ? tasks[index]?.createdAt : undefined) || new Date().toISOString();
+    const existing = index !== -1 ? tasks[index] : null;
+    const defaultCreatedAt = task.createdAt || existing?.createdAt || new Date().toISOString();
     const taskToSave: Task = {
       id: task.id || crypto.randomUUID(),
-      clientId: task.clientId || '',
-      title: task.title || '',
-      requester: task.requester || '',
-      deliveryDate: task.deliveryDate || '',
+      clientId: task.clientId || existing?.clientId || '',
+      title: task.title !== undefined ? task.title : (existing?.title || ''),
+      requester: task.requester !== undefined ? task.requester : (existing?.requester || ''),
+      deliveryDate: task.deliveryDate !== undefined ? task.deliveryDate : (existing?.deliveryDate || ''),
       createdAt: defaultCreatedAt,
-      status: task.status || 'Fazer',
-      responsible: task.responsible || '',
-      responsibleId: task.responsibleId,
-      description: task.description || '',
-      checklist: task.checklist || []
+      status: task.status || existing?.status || 'Fazer',
+      responsible: task.responsible !== undefined ? task.responsible : (existing?.responsible || ''),
+      responsibleId: task.responsibleId !== undefined ? task.responsibleId : existing?.responsibleId,
+      description: task.description !== undefined ? task.description : (existing?.description || ''),
+      checklist: task.checklist !== undefined ? task.checklist : (existing?.checklist || [])
     };
     if (index !== -1) {
       tasks[index] = taskToSave;
@@ -1282,9 +1283,12 @@ async getPostImage(postId: string): Promise<string | undefined> {
   // Tasks
   async getTasks(clientId: string): Promise<Task[]> {
     console.log('Supabase: Fetching tasks for client...', clientId);
+    const mockTasks = mockDb.getTasks(clientId);
+    const deletedIds = new Set(getMockItem<string[]>('sb-mock-deleted-tasks', []));
+
     if (!clientId || !isUUID(clientId)) {
       console.warn('Supabase: getTasks call with invalid clientId:', clientId);
-      return mockDb.getTasks(clientId);
+      return mockTasks.filter(t => !deletedIds.has(t.id));
     }
 
     try {
@@ -1294,20 +1298,54 @@ async getPostImage(postId: string): Promise<string | undefined> {
         .eq('client_id', clientId)
         .order('delivery_date');
       
-      if (!error && data && data.length > 0) {
-        console.log(`Supabase: Successfully fetched ${data.length} tasks.`);
-        return data.map(mappers.task);
+      if (!error && data) {
+        console.log(`Supabase: Successfully fetched ${data.length} tasks online.`);
+        const dbTasks = data.map(mappers.task);
+        
+        const localTaskMap = new Map(mockTasks.map(t => [t.id, t]));
+        const mergedTasks = dbTasks.map(dbTask => {
+          const localTask = localTaskMap.get(dbTask.id);
+          if (localTask) {
+            // Local task edits take precedence over stale online data
+            return {
+              ...dbTask,
+              ...localTask
+            };
+          }
+          return dbTask;
+        });
+
+        const dbTaskIds = new Set(dbTasks.map(t => t.id));
+        for (const localTask of mockTasks) {
+          if (!dbTaskIds.has(localTask.id)) {
+            mergedTasks.push(localTask);
+          }
+        }
+
+        const filtered = mergedTasks.filter(t => !deletedIds.has(t.id));
+        // Keep mockDb synced with merged list
+        setMockItem('sb-mock-tasks', filtered);
+        return filtered;
       }
     } catch (e) {
       console.warn('Supabase: Error fetching tasks online, falling back to mockDb:', e);
     }
 
-    return mockDb.getTasks(clientId);
+    return mockTasks.filter(t => !deletedIds.has(t.id));
   },
 
   async deleteTask(id: string) {
     console.log('Supabase: Deleting task...', id);
     mockDb.deleteTask(id);
+    
+    // Store in deleted IDs list so it won't reappear if online delete fails/lags
+    if (id) {
+      const deleted = getMockItem<string[]>('sb-mock-deleted-tasks', []);
+      if (!deleted.includes(id)) {
+        setMockItem('sb-mock-deleted-tasks', [...deleted, id]);
+      }
+    }
+
     if (id && isUUID(id)) {
       try {
         await supabase
@@ -1322,72 +1360,148 @@ async getPostImage(postId: string): Promise<string | undefined> {
   },
 
   async saveTask(task: Partial<Task>): Promise<Task> {
-    console.log('Supabase: Saving task...', task.title);
+    console.log('Supabase: Saving task...', task.title, task);
     
     const clientId = task.clientId && isUUID(task.clientId) ? task.clientId : undefined;
+    const taskId = task.id && isUUID(task.id) ? task.id : undefined;
 
-    const dbTask: any = {
-      title: task.title || 'Nova Tarefa',
-      requester: task.requester || '',
-      delivery_date: task.deliveryDate || '',
-      created_at: task.createdAt || new Date().toISOString(),
-      status: task.status || 'Fazer',
-      responsible: task.responsible || '',
-      description: task.description || '',
-      checklist: task.checklist || []
-    };
+    const deliveryDate = task.deliveryDate && task.deliveryDate.trim() !== '' ? task.deliveryDate : null;
+    const createdAt = task.createdAt && task.createdAt.trim() !== '' ? task.createdAt : new Date().toISOString();
 
-    if (clientId) {
-      dbTask.client_id = clientId;
-    }
+    // Candidate payloads from complete to minimal, ensuring null instead of empty strings for dates
+    const candidatePayloads = [
+      {
+        title: task.title || 'Nova Tarefa',
+        requester: task.requester || '',
+        delivery_date: deliveryDate,
+        created_at: createdAt,
+        status: task.status || 'Fazer',
+        responsible: task.responsible || '',
+        responsible_id: task.responsibleId || null,
+        description: task.description || '',
+        checklist: task.checklist || [],
+        ...(clientId ? { client_id: clientId } : {})
+      },
+      {
+        title: task.title || 'Nova Tarefa',
+        requester: task.requester || '',
+        delivery_date: deliveryDate,
+        created_at: createdAt,
+        status: task.status || 'Fazer',
+        responsible: task.responsible || '',
+        description: task.description || '',
+        ...(clientId ? { client_id: clientId } : {})
+      },
+      {
+        title: task.title || 'Nova Tarefa',
+        status: task.status || 'Fazer',
+        delivery_date: deliveryDate,
+        ...(clientId ? { client_id: clientId } : {})
+      },
+      {
+        title: task.title || 'Nova Tarefa',
+        status: task.status || 'Fazer'
+      }
+    ];
 
-    try {
-      let savedData: any = null;
+    let savedData: any = null;
 
-      if (task.id && isUUID(task.id)) {
-        console.log('Supabase: Updating task in table "tasks" with ID:', task.id);
-        const { data, error } = await supabase
-          .from('tasks')
-          .update(dbTask)
-          .eq('id', task.id)
-          .select();
-        
-        if (!error && data && data.length > 0) {
-          savedData = data[0];
-        } else {
-          console.warn('Supabase: Update failed or returned no row for task ID:', task.id, 'trying upsert/insert fallback...', error);
-          const { data: upsertData, error: upsertErr } = await supabase
+    if (taskId) {
+      console.log('Supabase: Updating task with ID:', taskId);
+      for (const payload of candidatePayloads) {
+        try {
+          const { data, error } = await supabase
             .from('tasks')
-            .upsert({ ...dbTask, id: task.id })
+            .update(payload)
+            .eq('id', taskId)
             .select();
-          
-          if (!upsertErr && upsertData && upsertData.length > 0) {
-            savedData = upsertData[0];
+
+          if (!error && data && data.length > 0) {
+            savedData = data[0];
+            console.log('Supabase: Task updated successfully:', savedData);
+            break;
+          }
+
+          if (error) {
+            console.warn('Supabase: Task update error with payload:', error.message);
+          }
+        } catch (e) {
+          console.warn('Supabase: Exception during task update attempt:', e);
+        }
+      }
+
+      if (!savedData) {
+        console.log('Supabase: Task not updated via update(), attempting upsert for ID:', taskId);
+        for (const payload of candidatePayloads) {
+          try {
+            const { data, error } = await supabase
+              .from('tasks')
+              .upsert({ ...payload, id: taskId })
+              .select();
+
+            if (!error && data && data.length > 0) {
+              savedData = data[0];
+              console.log('Supabase: Task upserted successfully:', savedData);
+              break;
+            }
+          } catch (e) {
+            console.warn('Supabase: Exception during task upsert attempt:', e);
           }
         }
-      } else {
-        console.log('Supabase: Inserting new task into table "tasks"...');
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert(dbTask)
-          .select();
-        
-        if (!error && data && data.length > 0) {
-          savedData = data[0];
+      }
+    } else {
+      console.log('Supabase: Inserting new task...');
+      for (const payload of candidatePayloads) {
+        try {
+          const { data, error } = await supabase
+            .from('tasks')
+            .insert(payload)
+            .select();
+
+          if (!error && data && data.length > 0) {
+            savedData = data[0];
+            console.log('Supabase: Task inserted successfully:', savedData);
+            break;
+          }
+        } catch (e) {
+          console.warn('Supabase: Exception during task insert attempt:', e);
         }
       }
-
-      if (savedData) {
-        const resultTask = mappers.task(savedData);
-        mockDb.saveTask(resultTask);
-        return resultTask;
-      }
-    } catch (err: any) {
-      console.warn('Supabase: Error in saveTask online operation, falling back to local storage:', err);
     }
 
-    // Always fallback to mockDb so task saving never fails for the user
-    return mockDb.saveTask(task);
+    let finalTask: Task;
+    if (savedData) {
+      const mapped = mappers.task(savedData);
+      finalTask = {
+        ...task,
+        ...mapped,
+        clientId: task.clientId || mapped.clientId || '',
+        title: mapped.title || task.title || '',
+        deliveryDate: mapped.deliveryDate || task.deliveryDate || '',
+        status: mapped.status || task.status || 'Fazer',
+        description: mapped.description !== undefined ? mapped.description : (task.description || ''),
+        checklist: mapped.checklist && mapped.checklist.length > 0 ? mapped.checklist : (task.checklist || [])
+      } as Task;
+    } else {
+      console.warn('Supabase: Task save online did not return data. Saving locally to mockDb.');
+      finalTask = {
+        id: task.id || crypto.randomUUID(),
+        clientId: task.clientId || '',
+        title: task.title || 'Nova Tarefa',
+        requester: task.requester || '',
+        deliveryDate: task.deliveryDate || '',
+        createdAt: createdAt,
+        status: task.status || 'Fazer',
+        responsible: task.responsible || '',
+        responsibleId: task.responsibleId,
+        description: task.description || '',
+        checklist: task.checklist || []
+      } as Task;
+    }
+
+    // Always persist to local mockDb
+    const saved = mockDb.saveTask(finalTask);
+    return saved;
   },
 
   // Team Members
@@ -1863,13 +1977,13 @@ async getPostImage(postId: string): Promise<string | undefined> {
     } catch (err) {
       console.warn('Supabase: Error during signOut:', err);
     } finally {
-      // Forcefully clear locastorage tokens related to supabase auth if needed
+      // Forcefully clear local storage tokens related to supabase auth only
       try {
         localStorage.removeItem('supabase.auth.token');
-        // Clear anything starting with sb- (Supabase default)
         for (let i = localStorage.length - 1; i >= 0; i--) {
           const key = localStorage.key(i);
-          if (key && (key.includes('supabase.auth.token') || key.startsWith('sb-'))) {
+          // Preserve sb-mock- data so user changes are not lost on logout
+          if (key && !key.startsWith('sb-mock-') && (key.includes('supabase.auth.token') || key.includes('-auth-token') || key.startsWith('sb-'))) {
             localStorage.removeItem(key);
           }
         }

@@ -535,7 +535,7 @@ export function MetricsPage({ client, posts, agencySettings }: MetricsPageProps)
       doc.save(`relatorio-performance-${client.name.toLowerCase().replace(/\s+/g, '-')}.pdf`);
       toast.success('Relatório PDF gerado com sucesso!', { id: toastId });
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
+      console.warn('Notice: Erro ao gerar PDF:', error);
       toast.error('Erro ao gerar o relatório PDF.', { id: toastId });
     }
   };

@@ -87,7 +87,7 @@ export function Dashboard({ client, posts: propsPosts, tasks: propsTasks, commem
         const automaticDates = getAutomaticCommemorativeDates(currentYear);
         setCommemorativeDates([...automaticDates, ...(dbDates || [])]);
       } catch (err) {
-        console.error('Dashboard: Error fetching isolated data:', err);
+        console.warn('Dashboard: Notice while fetching isolated data (falling back):', err);
       } finally {
         setIsLoadingData(false);
       }

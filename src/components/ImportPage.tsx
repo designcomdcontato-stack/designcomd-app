@@ -142,14 +142,14 @@ export function ImportPage({ client, team, onImport }: ImportPageProps) {
             toast.error('Nenhum dado válido encontrado no CSV.');
           }
         } catch (error) {
-          console.error('Erro ao processar CSV:', error);
+          console.warn('Notice: Erro ao processar CSV:', error);
           toast.error('Erro ao processar o arquivo CSV. Verifique o formato.');
         } finally {
           setIsImporting(false);
         }
       },
       error: (error) => {
-        console.error('Erro no PapaParse:', error);
+        console.warn('Notice: Erro no PapaParse:', error);
         toast.error('Erro ao ler o arquivo CSV.');
         setIsImporting(false);
       }

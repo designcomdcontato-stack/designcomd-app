@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, clearSupabaseAuthTokens, isSupabaseOnline, markSupabaseOffline } from '../lib/supabaseClient';
 import { Client, Post, Task, AgencySettings, FinancialReport, EditorialItem, TeamMember, CommemorativeDate } from '../types';
 import { 
   INITIAL_CLIENTS, 
@@ -24,7 +24,7 @@ const setMockItem = <T>(key: string, value: T): void => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (e) {
-    console.error('Error writing mockDb to localStorage:', e);
+    console.warn('Notice: Error writing mockDb to localStorage:', e);
   }
 };
 
@@ -403,7 +403,7 @@ const rawSupabaseService = {
       .order('name');
     
     if (error) {
-      console.error('Supabase: Error fetching clients:', error);
+      console.warn('Supabase: Error fetching clients (falling back):', error);
       throw error;
     }
     
@@ -438,7 +438,7 @@ const rawSupabaseService = {
         .single();
       
       if (error) {
-        console.error('Supabase: Error updating client (table: clients, id:', client.id, '):', error);
+        console.warn('Supabase: Error updating client (table: clients, id:', client.id, '):', error);
         throw error;
       }
       return mappers.client(data);
@@ -451,7 +451,7 @@ const rawSupabaseService = {
         .single();
       
       if (error) {
-        console.error('Supabase: Error inserting client (table: clients):', error);
+        console.warn('Supabase: Error inserting client (table: clients):', error);
         throw error;
       }
       return mappers.client(data);
@@ -466,7 +466,7 @@ const rawSupabaseService = {
       .eq('id', id);
     
     if (error) {
-      console.error('Supabase: Error deleting client:', error);
+      console.warn('Supabase: Error deleting client:', error);
       throw error;
     }
     
@@ -745,7 +745,7 @@ const rawSupabaseService = {
       .eq('id', id);
     
     if (error) {
-      console.error('Supabase: Error deleting editorial item:', error);
+      console.warn('Supabase: Error deleting editorial item (falling back):', error);
       throw error;
     }
     
@@ -769,7 +769,7 @@ const rawSupabaseService = {
       .order('entry_date');
     
     if (error) {
-      console.error('Supabase: Error fetching diary entries:', error);
+      console.warn('Supabase: Error fetching diary entries (falling back):', error);
       return [];
     }
     
@@ -814,7 +814,7 @@ const rawSupabaseService = {
           .eq('id', existing.id);
         
         if (updateError) {
-          console.error(`Supabase: Error updating diary entry (table: diary_entries, id: ${existing.id}):`, updateError);
+          console.warn(`Supabase: Error updating diary entry (table: diary_entries, id: ${existing.id}):`, updateError);
           throw updateError;
         }
       } else {
@@ -824,7 +824,7 @@ const rawSupabaseService = {
           .insert(item);
         
         if (insertError) {
-          console.error('Supabase: Error inserting diary entry (table: diary_entries):', insertError);
+          console.warn('Supabase: Error inserting diary entry (table: diary_entries):', insertError);
           throw insertError;
         }
       }
@@ -843,7 +843,7 @@ const rawSupabaseService = {
       .eq('title', title);
     
     if (error) {
-      console.error('Supabase: Error deleting diary entry:', error);
+      console.warn('Supabase: Error deleting diary entry (falling back):', error);
       throw error;
     }
     
@@ -860,7 +860,7 @@ const rawSupabaseService = {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Supabase: Error fetching files:', error);
+      console.warn('Supabase: Error fetching files (falling back):', error);
       return [];
     }
     
@@ -887,7 +887,7 @@ const rawSupabaseService = {
     });
 
     if (error) {
-      console.error('Supabase: Error uploading file:', error);
+      console.warn('Supabase: Error uploading file:', error);
       throw error;
     }
 
@@ -919,7 +919,7 @@ const rawSupabaseService = {
         .single();
       
       if (error) {
-        console.error('Supabase: Error updating file record (table: files, id:', file.id, '):', error);
+        console.warn('Supabase: Error updating file record (table: files, id:', file.id, '):', error);
         throw error;
       }
       
@@ -944,7 +944,7 @@ const rawSupabaseService = {
         .single();
       
       if (error) {
-        console.error('Supabase: Error inserting file record (table: files):', error);
+        console.warn('Supabase: Error inserting file record (table: files):', error);
         throw error;
       }
       
@@ -968,7 +968,7 @@ const rawSupabaseService = {
     console.log(`Supabase: Deleting files from bucket "${bucket}" at paths:`, pathArray);
     const { error } = await supabase.storage.from(bucket).remove(pathArray);
     if (error) {
-      console.error('Supabase: Error removing files from storage:', error);
+      console.warn('Supabase: Error removing files from storage:', error);
       throw error;
     }
     console.log('Supabase: Files removed from storage');
@@ -981,7 +981,7 @@ const rawSupabaseService = {
       .delete()
       .eq('id', id);
     if (error) {
-      console.error('Supabase: Error deleting file record:', error);
+      console.warn('Supabase: Error deleting file record:', error);
       throw error;
     }
   },
@@ -995,7 +995,7 @@ const rawSupabaseService = {
       .eq('folder_id', folderId);
     
     if (error) {
-      console.error('Supabase: Error deleting files by folder:', error);
+      console.warn('Supabase: Error deleting files by folder:', error);
       throw error;
     }
   },
@@ -1010,7 +1010,7 @@ const rawSupabaseService = {
       .maybeSingle();
     
     if (error) {
-      console.error('Supabase: Error fetching post metrics:', error);
+      console.warn('Supabase: Error fetching post metrics (falling back):', error);
       return null;
     }
     
@@ -1045,7 +1045,7 @@ const rawSupabaseService = {
         .eq('id', existing.id);
       
       if (error) {
-        console.error('Supabase: Error updating post metrics (table: post_metrics, id:', existing.id, '):', error);
+        console.warn('Supabase: Error updating post metrics (table: post_metrics, id:', existing.id, '):', error);
         throw error;
       }
     } else {
@@ -1055,7 +1055,7 @@ const rawSupabaseService = {
         .insert(dbMetrics);
       
       if (error) {
-        console.error('Supabase: Error inserting post metrics (table: post_metrics):', error);
+        console.warn('Supabase: Error inserting post metrics (table: post_metrics):', error);
         throw error;
       }
     }
@@ -1115,7 +1115,7 @@ async getPosts(clientId: string): Promise<Post[]> {
     .limit(100);
 
   if (error) {
-    console.error('Supabase: Error fetching posts:', error);
+    console.warn('Supabase: Error fetching posts (falling back):', error);
     throw error;
   }
 
@@ -1134,7 +1134,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
     .maybeSingle();
 
   if (error) {
-    console.error('Supabase: Error fetching post image:', error);
+    console.warn('Supabase: Error fetching post image (falling back):', error);
     return undefined;
   }
   return data?.image;
@@ -1145,7 +1145,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
     
     // Ensure client_id is a valid UUID
     if (!post.clientId || !isUUID(post.clientId)) {
-      console.error('Supabase ERROR: Cannot save post without a valid UUID client_id. Provided:', post.clientId);
+      console.warn('Supabase ERROR: Cannot save post without a valid UUID client_id. Provided:', post.clientId);
       throw new Error('O cliente vinculado a este post não possui um ID válido no banco de dados. Salve o cliente primeiro na aba Perfis.');
     }
 
@@ -1176,7 +1176,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
           .single();
         
         if (error) {
-          console.error('Supabase: Error in update operation:', error);
+          console.warn('Supabase: Error in update operation:', error);
           throw error;
         }
         return mappers.post(data);
@@ -1189,13 +1189,13 @@ async getPostImage(postId: string): Promise<string | undefined> {
           .single();
         
         if (error) {
-          console.error('Supabase: Error in insert operation:', error);
+          console.warn('Supabase: Error in insert operation:', error);
           throw error;
         }
         return mappers.post(data);
       }
     } catch (err: any) {
-      console.error('Supabase: Critical error in savePost execution:', err);
+      console.warn('Supabase: Error in savePost execution (falling back):', err?.message || err);
       // Extract specific Supabase error message if available
       const message = err.message || err.details || 'Falha na comunicação com o banco de dados Supabase';
       throw new Error(message);
@@ -1246,7 +1246,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
       .select();
     
     if (error) {
-      console.error('Supabase: Error in bulk saving posts:', error);
+      console.warn('Supabase: Error in bulk saving posts (falling back):', error);
       throw error;
     }
     
@@ -1273,7 +1273,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
       .eq('id', id);
     
     if (error) {
-      console.error('Supabase: Error deleting post:', error);
+      console.warn('Supabase: Error deleting post:', error);
       throw error;
     }
     
@@ -1513,7 +1513,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
       .order('created_at', { ascending: true });
     
     if (error) {
-      console.error('Supabase: Error fetching team members:', error);
+      console.warn('Supabase: Error fetching team members (falling back):', error);
       throw error;
     }
     
@@ -1548,7 +1548,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         .single();
       
       if (error) {
-        console.error('Supabase: Error updating team member (table: team_members, id:', member.id, '):', error);
+        console.warn('Supabase: Error updating team member (table: team_members, id:', member.id, '):', error);
         throw error;
       }
       
@@ -1570,7 +1570,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         .single();
       
       if (error) {
-        console.error('Supabase: Error inserting team member (table: team_members):', error);
+        console.warn('Supabase: Error inserting team member (table: team_members):', error);
         throw error;
       }
       
@@ -1598,7 +1598,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
       .eq('id', id);
     
     if (error) {
-      console.error('Supabase: Error deleting team member:', error);
+      console.warn('Supabase: Error deleting team member:', error);
       throw error;
     }
   },
@@ -1621,7 +1621,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
       let { data, error } = await query.order('date');
       
       if (error) {
-        console.error('Supabase: Error fetching commemorative dates:', error);
+        console.warn('Supabase: Error fetching commemorative dates (falling back):', error);
         throw error;
       }
 
@@ -1653,7 +1653,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         status: item.status || 'Ideia'
       }));
     } catch (err) {
-      console.error('Supabase: Falha ao buscar datas:', err);
+      console.warn('Supabase: Falha ao buscar datas (falling back):', err);
       return [];
     }
   },
@@ -1689,7 +1689,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
           .single();
         
         if (error) {
-          console.error('Supabase Error (update commemorative_dates):', error);
+          console.warn('Supabase Warning (update commemorative_dates):', error);
           throw error;
         }
         
@@ -1712,7 +1712,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
           .single();
         
         if (error) {
-          console.error('Supabase Error (insert commemorative_dates):', error);
+          console.warn('Supabase Warning (insert commemorative_dates):', error);
           throw error;
         }
         
@@ -1728,7 +1728,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         };
       }
     } catch (err: any) {
-      console.error('Erro real ao salvar data no Supabase:', err);
+      console.warn('Aviso ao salvar data no Supabase (falling back):', err?.message || err);
       throw err;
     }
   },
@@ -1779,7 +1779,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         .single();
       
       if (error) {
-        console.error('Supabase: Error updating financial report (table: financial_reports, id:', report.id, '):', error);
+        console.warn('Supabase: Error updating financial report (table: financial_reports, id:', report.id, '):', error);
         throw error;
       }
       return mappers.financialReport(data);
@@ -1792,7 +1792,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         .single();
       
       if (error) {
-        console.error('Supabase: Error inserting financial report (table: financial_reports):', error);
+        console.warn('Supabase: Error inserting financial report (table: financial_reports):', error);
         throw error;
       }
       return mappers.financialReport(data);
@@ -1862,7 +1862,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         .single();
       
       if (error) {
-        console.error('Supabase: Error updating agency settings (table: agency_settings, id:', existing.id, '):', error);
+        console.warn('Supabase: Error updating agency settings (table: agency_settings, id:', existing.id, '):', error);
         throw error;
       }
       
@@ -1885,7 +1885,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
         .single();
       
       if (error) {
-        console.error('Supabase: Error inserting agency settings (table: agency_settings):', error);
+        console.warn('Supabase: Error inserting agency settings (table: agency_settings):', error);
         throw error;
       }
       
@@ -1918,7 +1918,7 @@ async getPostImage(postId: string): Promise<string | undefined> {
       
       if (error) {
         this.handleAuthError(error);
-        console.error('Error checking authorization:', error);
+        console.warn('Notice: Error checking authorization (falling back):', error);
         return false;
       }
       
@@ -1932,9 +1932,14 @@ async getPostImage(postId: string): Promise<string | undefined> {
   // Helper to handle standard auth errors
   handleAuthError(error: any) {
     if (!error) return;
-    const msg = error.message || '';
-    if (msg.includes('Refresh Token Not Found') || msg.includes('Refresh Token is invalid') || msg.includes('invalid_grant')) {
-      console.error('Auth error detected, force logout:', msg);
+    const msg = (error.message || error.error_description || String(error || '')).toLowerCase();
+    if (
+      msg.includes('refresh token') ||
+      msg.includes('refresh_token') ||
+      msg.includes('invalid_grant') ||
+      msg.includes('session_not_found')
+    ) {
+      console.warn('Auth refresh token error detected, clearing stale session');
       this.logout().catch(() => {});
     }
   },
@@ -1973,21 +1978,15 @@ async getPostImage(postId: string): Promise<string | undefined> {
 
   async logout() {
     try {
-      await supabase.auth.signOut();
+      if (isSupabaseConfigured) {
+        // Use scope: 'local' so client state is cleanly removed without failing on expired server tokens
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      }
     } catch (err) {
       console.warn('Supabase: Error during signOut:', err);
     } finally {
       // Forcefully clear local storage tokens related to supabase auth only
-      try {
-        localStorage.removeItem('supabase.auth.token');
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const key = localStorage.key(i);
-          // Preserve sb-mock- data so user changes are not lost on logout
-          if (key && !key.startsWith('sb-mock-') && (key.includes('supabase.auth.token') || key.includes('-auth-token') || key.startsWith('sb-'))) {
-            localStorage.removeItem(key);
-          }
-        }
-      } catch (e) {}
+      clearSupabaseAuthTokens();
     }
   },
 
@@ -1995,20 +1994,31 @@ async getPostImage(postId: string): Promise<string | undefined> {
     try {
       const { data, error } = await supabase.auth.getSession();
       if (error) {
-        if (error.message.includes('Refresh Token Not Found') || 
-            error.message.includes('Refresh Token is invalid') ||
-            error.message.includes('invalid_grant')) {
+        const errMsg = (error.message || (error as any)?.error_description || String(error || '')).toLowerCase();
+        if (
+          errMsg.includes('refresh token') || 
+          errMsg.includes('refresh_token') ||
+          errMsg.includes('invalid_grant') ||
+          errMsg.includes('session_not_found')
+        ) {
           console.warn('Supabase: Refresh token lost or invalid. Treating as signed out.');
           await this.logout();
-          return { session: null };
+          return { data: { session: null }, session: null };
         }
         throw error;
       }
-      return data;
+      return { ...data, session: data?.session || null };
     } catch (err: any) {
-      if (err.message?.includes('Refresh Token') || err.message?.includes('invalid_grant')) {
+      const errMsg = (err?.message || err?.error_description || String(err || '')).toLowerCase();
+      if (
+        errMsg.includes('refresh token') || 
+        errMsg.includes('refresh_token') ||
+        errMsg.includes('invalid_grant') ||
+        errMsg.includes('session_not_found')
+      ) {
+        console.warn('Supabase: Catch handled refresh token error. Treating as signed out.');
         await this.logout();
-        return { session: null };
+        return { data: { session: null }, session: null };
       }
       throw err;
     }
@@ -2061,7 +2071,7 @@ export const supabaseService = new Proxy(rawSupabaseService, {
 
     if (propStr === 'onAuthStateChange') {
       return function(this: any, ...args: any[]) {
-        if (!isSupabaseConfigured) {
+        if (!isSupabaseOnline()) {
           const callback = args[0];
           const g = (supabaseService as any);
           g._authListeners = g._authListeners || [];
@@ -2141,7 +2151,7 @@ export const supabaseService = new Proxy(rawSupabaseService, {
         return undefined;
       };
 
-      if (!isSupabaseConfigured) {
+      if (!isSupabaseOnline()) {
         return handleMockFallback(propStr, args);
       }
 
@@ -2150,31 +2160,54 @@ export const supabaseService = new Proxy(rawSupabaseService, {
       } catch (err: any) {
         const errMsg = (err?.message || err?.error_description || err?.error || String(err) || '').toLowerCase();
         const errCode = String(err?.code || '');
+        
+        const isRefreshTokenErr = 
+          errMsg.includes('refresh token') ||
+          errMsg.includes('refresh_token') ||
+          errMsg.includes('invalid refresh token') ||
+          errMsg.includes('invalid_grant') ||
+          errMsg.includes('session_not_found');
+
+        if (isRefreshTokenErr) {
+          console.warn(`Supabase: Intercepted refresh token error on "${propStr}". Clearing stale session...`);
+          try {
+            await target.logout();
+          } catch (e) {}
+
+          if (propStr === 'getSession') {
+            return { data: { session: null }, session: null };
+          }
+          return handleMockFallback(propStr, args);
+        }
+
         const isAuthCredentialErr = (propStr === 'login' || propStr === 'verifyCredentials') && 
           (errMsg.includes('credential') || errMsg.includes('invalid') || errMsg.includes('not found') || errMsg.includes('unauthorized') || errMsg.includes('confirmed'));
 
-        if (!isAuthCredentialErr) {
-          console.error(`Supabase: Error during original.${propStr} call:`, err);
-        } else {
-          console.warn(`Supabase: Authentication failed on original.${propStr} call (potential invalid credentials). Trying fallback...`, err);
-        }
-
-        const isNetworkOrDbErr = 
+        const isFetchOrNetworkErr = 
           errMsg.includes('fetch') || 
           errMsg.includes('network') || 
-          isAuthCredentialErr ||
-          errMsg.includes('refresh_token_not_found') || 
-          errMsg.includes('invalid_grant') || 
           errMsg.includes('load failed') || 
           errMsg.includes('cors') || 
           errMsg.includes('dns') ||
           errMsg.includes('connection') ||
+          errMsg.includes('timeout') ||
+          errMsg.includes('offline');
+
+        if (isFetchOrNetworkErr) {
+          markSupabaseOffline();
+        }
+
+        const isNetworkOrDbErr = 
+          isFetchOrNetworkErr ||
+          isAuthCredentialErr ||
+          isRefreshTokenErr ||
+          errMsg.includes('refresh_token_not_found') || 
+          errMsg.includes('invalid_grant') || 
           errMsg.includes('api_key') ||
           errMsg.includes('not found') ||
           errMsg.includes('relation') ||
           errMsg.includes('does not exist') ||
           errMsg.includes('uuid') ||
-          errMsg.includes('timeout') ||
           errMsg.includes('cancel') ||
           errMsg.includes('failed') ||
           errMsg.includes('policy') ||
@@ -2186,10 +2219,12 @@ export const supabaseService = new Proxy(rawSupabaseService, {
           errCode === '57014';
         
         if (isNetworkOrDbErr) {
-          console.warn(`[Fallback Mode] Intercepted network/db/auth error on "${propStr}". Routing to mockDb...`);
+          console.warn(`[Fallback Mode] Intercepted network/db condition on "${propStr}". Routing to mockDb:`, errMsg);
           return handleMockFallback(propStr, args);
         }
-        throw err;
+
+        console.warn(`Supabase: Intercepted unhandled error on "${propStr}". Using mock fallback:`, err);
+        return handleMockFallback(propStr, args);
       }
     };
   }

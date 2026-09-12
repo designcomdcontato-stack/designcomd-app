@@ -28,7 +28,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       // Success toast is handled here or in App if desired, but toast.success is usually nice here
       toast.success('Bem-vindo de volta!');
     } catch (error: any) {
-      console.error('Login detailed error:', error);
+      console.warn('Login notice/error:', error);
       const errorMessage = error.message || 'Erro ao realizar login';
       toast.error(errorMessage);
     } finally {

@@ -35,7 +35,7 @@ export function SecurityPrompt({ correctPassword, onConfirm, onCancel, targetNam
         setIsVerifying(false);
       }
     } catch (err) {
-      console.error('Password re-auth error:', err);
+      console.warn('Notice: Password re-auth error:', err);
       toast.error('Erro ao verificar senha. Tente novamente.');
       setIsVerifying(false);
     }

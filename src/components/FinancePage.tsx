@@ -182,7 +182,7 @@ export function FinancePage({
       link.click();
       toast.success('Download concluído!', { id: toastId });
     } catch (err) {
-      console.error('oops, something went wrong!', err);
+      console.warn('Notice: download error:', err);
       toast.error('Erro ao gerar download.', { id: toastId });
     }
   };

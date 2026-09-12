@@ -64,7 +64,8 @@ export default function App() {
     // Check current session on mount
     const initAuth = async () => {
       try {
-        const { session } = await supabaseService.getSession();
+        const res = await supabaseService.getSession();
+        const session = res?.session || res?.data?.session;
         if (session?.user?.email) {
           const authorized = await supabaseService.isAuthorized(session.user.email);
           if (authorized) {
@@ -81,12 +82,15 @@ export default function App() {
           setUser(null);
         }
       } catch (err: any) {
-        console.error('Auth initialization error:', err);
-        // If it's a refresh token error, we're essentially signed out
-        if (err.message?.includes('Refresh Token') || err.message?.includes('invalid_grant')) {
-          setIsAuthenticated(false);
-          setUser(null);
+        const errMsg = (err?.message || String(err || '')).toLowerCase();
+        if (errMsg.includes('refresh token') || errMsg.includes('refresh_token') || errMsg.includes('invalid_grant')) {
+          console.warn('App: Session refresh token invalid on mount. User is signed out.');
+        } else {
+          console.warn('Auth initialization error:', err);
         }
+        await supabaseService.logout().catch(() => {});
+        setIsAuthenticated(false);
+        setUser(null);
       } finally {
         setIsAuthChecking(false);
         isInitialAuthChecked.current = true;
@@ -111,10 +115,15 @@ export default function App() {
           await supabaseService.logout();
           toast.error('Acesso não autorizado.');
         }
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         setIsAuthenticated(false);
         setUser(null);
         setUserPassword('');
+      } else if (event === 'TOKEN_REFRESHED') {
+        if (!session) {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
       }
     });
 
@@ -129,9 +138,9 @@ export default function App() {
       setIsLoading(true);
       console.log('App: Fetching initial data from Supabase...');
       const [dbClients, dbSettings, dbTeam] = await Promise.all([
-        supabaseService.getClients().catch((err) => { console.error('Clients fetch error:', err); return []; }),
-        supabaseService.getAgencySettings().catch((err) => { console.error('Settings fetch error:', err); return null; }),
-        supabaseService.getTeamMembers().catch((err) => { console.error('Team fetch error:', err); return []; })
+        supabaseService.getClients().catch((err) => { console.warn('Clients fetch note:', err?.message || err); return []; }),
+        supabaseService.getAgencySettings().catch((err) => { console.warn('Settings fetch note:', err?.message || err); return null; }),
+        supabaseService.getTeamMembers().catch((err) => { console.warn('Team fetch note:', err?.message || err); return []; })
       ]);
 
       const finalClients = (dbClients || []).length > 0 ? dbClients : INITIAL_CLIENTS;
@@ -159,7 +168,7 @@ export default function App() {
         setFinancialReports([]);
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.warn('Notice: Error fetching data (falling back to initial):', err);
     } finally {
       setIsLoading(false);
     }
@@ -190,7 +199,7 @@ export default function App() {
       setCommemorativeDates(prev => [...prev, savedDate]);
       toast.success('Data comemorativa adicionada');
     } catch (err: any) {
-      console.error('Error saving date:', err);
+      console.warn('Notice: Error saving date:', err);
       toast.error(`Erro ao salvar data: ${err.message || 'Erro desconhecido'}`);
     }
   };
@@ -205,7 +214,7 @@ export default function App() {
       setCommemorativeDates(prev => [...prev, ...savedDates]);
       toast.success(`${newDates.length} datas adicionadas`);
     } catch (err: any) {
-      console.error('Error saving multiple dates:', err);
+      console.warn('Notice: Error saving multiple dates:', err);
       toast.error(`Erro ao salvar datas: ${err.message || 'Erro desconhecido'}`);
     }
   };
@@ -217,7 +226,7 @@ export default function App() {
       setCommemorativeDates(prev => prev.map(d => d.id === date.id ? savedDate : d));
       toast.success('Data atualizada');
     } catch (err: any) {
-      console.error('Error updating date:', err);
+      console.warn('Notice: Error updating date:', err);
       toast.error(`Erro ao atualizar data: ${err.message || 'Erro desconhecido'}`);
     }
   };
@@ -228,7 +237,7 @@ export default function App() {
       setCommemorativeDates(prev => prev.filter(d => d.id !== id));
       toast.success('Data removida');
     } catch (err: any) {
-      console.error('Error deleting date:', err);
+      console.warn('Notice: Error deleting date:', err);
       toast.error(`Erro ao remover data: ${err.message || 'Erro desconhecido'}`);
     }
   };
@@ -286,13 +295,13 @@ export default function App() {
       
       // Fetch separate table data filtered by client_id
       const [editorial, diary, files, dbPosts, dbTasks, dbDates, dbReports] = await Promise.all([
-        supabaseService.getEditorialLine(client.id).catch(err => { console.error('Editorial fetch error:', err); return []; }),
-        supabaseService.getDiaryEntries(client.id).catch(err => { console.error('Diary fetch error:', err); return []; }),
-        supabaseService.getFiles(client.id).catch(err => { console.error('Files fetch error:', err); return []; }),
-        supabaseService.getPosts(client.id).catch(err => { console.error('Posts fetch error:', err); return []; }),
-        supabaseService.getTasks(client.id).catch(err => { console.error('Tasks fetch error:', err); return []; }),
-        supabaseService.getCommemorativeDates(client.id).catch(err => { console.error('Dates fetch error:', err); return []; }),
-        supabaseService.getFinancialReports(client.id).catch(err => { console.error('Reports fetch error:', err); return []; })
+        supabaseService.getEditorialLine(client.id).catch(err => { console.warn('Editorial fetch note:', err?.message || err); return []; }),
+        supabaseService.getDiaryEntries(client.id).catch(err => { console.warn('Diary fetch note:', err?.message || err); return []; }),
+        supabaseService.getFiles(client.id).catch(err => { console.warn('Files fetch note:', err?.message || err); return []; }),
+        supabaseService.getPosts(client.id).catch(err => { console.warn('Posts fetch note:', err?.message || err); return []; }),
+        supabaseService.getTasks(client.id).catch(err => { console.warn('Tasks fetch note:', err?.message || err); return []; }),
+        supabaseService.getCommemorativeDates(client.id).catch(err => { console.warn('Dates fetch note:', err?.message || err); return []; }),
+        supabaseService.getFinancialReports(client.id).catch(err => { console.warn('Reports fetch note:', err?.message || err); return []; })
       ]);
       
       // Update global states filtered by client
@@ -319,7 +328,7 @@ export default function App() {
       setIsClientSwitchUnlocked(false);
       toast.success(`Cliente carregado: ${client.name}`);
     } catch (err) {
-      console.error('Error loading client details:', err);
+      console.warn('Notice: Error loading client details (using active client):', err);
       setActiveClient(client);
       toast.error('Erro ao carregar detalhes do cliente do Supabase');
     } finally {
@@ -397,7 +406,7 @@ export default function App() {
       
       toast.success('Linha editorial salva no Supabase (editorial_lines)');
     } catch (err: any) {
-      console.error('Error saving editorial line:', err);
+      console.warn('Notice: Error saving editorial line:', err);
       toast.error('Erro no Supabase: ' + (err.message || 'Erro desconhecido ao salvar editorial'));
     }
   };
@@ -426,7 +435,7 @@ export default function App() {
       
       toast.success('Pilar da linha editorial excluído com sucesso');
     } catch (err: any) {
-      console.error('App: Real delete failed:', err);
+      console.warn('Notice: Real delete failed:', err);
       toast.error('Erro ao excluir do Supabase: ' + (err.message || 'Erro desconhecido'));
       throw err;
     } finally {
@@ -449,7 +458,7 @@ export default function App() {
       
       toast.success('Diário de seguidores atualizado com sucesso');
     } catch (err: any) {
-      console.error('App: Error saving follower history:', err);
+      console.warn('Notice: Error saving follower history:', err);
       toast.error('Erro ao salvar histórico no Supabase: ' + (err.message || 'Erro desconhecido'));
       throw err;
     }
@@ -470,7 +479,7 @@ export default function App() {
       
       toast.success('Registro excluído com sucesso');
     } catch (err: any) {
-      console.error('App: Error deleting diary entry:', err);
+      console.warn('Notice: Error deleting diary entry:', err);
       toast.error('Erro ao excluir registro: ' + (err.message || 'Erro desconhecido'));
       throw err;
     } finally {
@@ -510,7 +519,7 @@ export default function App() {
       setPosts(updatedPostsList);
       toast.success('Post e métricas salvos com sucesso');
     } catch (err: any) {
-      console.error('App ERROR: Failed to save post to Supabase.', err);
+      console.warn('Notice: Failed to save post to Supabase.', err);
       toast.error('Erro ao salvar post: ' + (err.message || 'Erro no Supabase'));
     }
   };
@@ -582,7 +591,7 @@ export default function App() {
       setEditingClient(null);
       toast.success('Cliente e arquivos persistidos no Supabase');
     } catch (err: any) {
-      console.error('Error saving client:', err);
+      console.warn('Notice: Error saving client:', err);
       toast.error('Erro ao salvar cliente no Supabase: ' + (err.message || 'Erro desconhecido'));
     }
   };
@@ -597,7 +606,7 @@ export default function App() {
       }
       toast.success('Cliente excluído com sucesso');
     } catch (err) {
-      console.error('Error deleting client:', err);
+      console.warn('Notice: Error deleting client:', err);
       toast.error('Erro ao excluir cliente');
     }
   };
@@ -610,7 +619,7 @@ export default function App() {
       setTeam(members);
       toast.success('Membro da equipe adicionado com sucesso');
     } catch (err: any) {
-      console.error('App ERROR: Failed to add team member:', err);
+      console.warn('Notice: Failed to add team member:', err);
       toast.error('Erro ao adicionar membro: ' + (err.message || 'Erro no Supabase'));
     } finally {
       setIsLoading(false);
@@ -625,7 +634,7 @@ export default function App() {
       setTeam(members);
       toast.success('Equipe atualizada com sucesso');
     } catch (err: any) {
-      console.error('App ERROR: Failed to update team member:', err);
+      console.warn('Notice: Failed to update team member:', err);
       toast.error('Erro ao atualizar equipe: ' + (err.message || 'Erro no Supabase'));
     } finally {
       setIsLoading(false);
@@ -667,7 +676,7 @@ export default function App() {
       setUserPassword(password);
       toast.success('Login realizado com sucesso!');
     } catch (err: any) {
-      console.error('Login error details:', err);
+      console.warn('Login note:', err?.message || err);
       const isInvalidCredentials = 
         err.message === 'Invalid login credentials' || 
         err.message?.includes('Invalid login credentials') ||
@@ -684,7 +693,7 @@ export default function App() {
     try {
       await supabaseService.logout();
     } catch (err) {
-      console.error('Logout error:', err);
+      console.warn('Logout notice:', err);
     } finally {
       setIsClientSwitchUnlocked(false);
       setIsAuthenticated(false);
@@ -713,7 +722,7 @@ export default function App() {
       
       toast.success(isCurrentlyPreferred ? 'Preferência removida' : `Perfil "${client.name}" definido como preferido`);
     } catch (err) {
-      console.error('Error toggling favorite:', err);
+      console.warn('Notice: Error toggling favorite:', err);
       toast.error('Erro ao salvar preferência no Supabase');
       // Refresh settings to sync back
       const dbSettings = await supabaseService.getAgencySettings();
@@ -734,7 +743,7 @@ export default function App() {
       setTeam(members);
       toast.success('Membro da equipe removido com sucesso');
     } catch (err: any) {
-      console.error('App ERROR: Failed to delete team member:', err);
+      console.warn('Notice: Failed to delete team member:', err);
       toast.error('Erro ao remover membro: ' + (err.message || 'Erro no Supabase'));
     } finally {
       setIsLoading(false);
@@ -748,7 +757,7 @@ export default function App() {
       setSelectedPost(null);
       toast.success('Post excluído com sucesso');
     } catch (err) {
-      console.error('Error deleting post:', err);
+      console.warn('Notice: Error deleting post:', err);
       toast.error('Erro ao excluir post');
     }
   };
@@ -759,7 +768,7 @@ export default function App() {
       setFinancialReports(prev => [...prev, savedReport]);
       toast.success('Relatório financeiro adicionado');
     } catch (err) {
-      console.error('Error saving financial report:', err);
+      console.warn('Notice: Error saving financial report:', err);
       toast.error('Erro ao salvar relatório financeiro');
     }
   };
@@ -770,7 +779,7 @@ export default function App() {
       setFinancialReports(prev => prev.map(r => r.id === updatedReport.id ? savedReport : r));
       toast.success('Relatório financeiro atualizado');
     } catch (err) {
-      console.error('Error updating financial report:', err);
+      console.warn('Notice: Error updating financial report:', err);
       toast.error('Erro ao atualizar relatório financeiro');
     }
   };
@@ -781,7 +790,7 @@ export default function App() {
       setFinancialReports(prev => prev.filter(r => r.id !== id));
       toast.success('Relatório financeiro excluído');
     } catch (err) {
-      console.error('Error deleting financial report:', err);
+      console.warn('Notice: Error deleting financial report:', err);
       toast.error('Erro ao excluir relatório financeiro');
     }
   };
@@ -842,7 +851,7 @@ export default function App() {
       setSelectedPost(savedPost);
       toast.success('Novo post criado com sucesso!');
     } catch (err: any) {
-      console.error('App: Error in handleCreatePost:', err);
+      console.warn('Notice: Error in handleCreatePost:', err);
       toast.error('Falha ao criar post: ' + (err.message || 'Erro no Supabase'));
     } finally {
       setIsLoading(false);
@@ -858,7 +867,7 @@ export default function App() {
       setActiveTab('planning');
       toast.success(`${newPosts.length} posts importados e salvos no Supabase.`);
     } catch (err) {
-      console.error('Error importing posts:', err);
+      console.warn('Notice: Error importing posts:', err);
       toast.error('Erro ao salvar posts no banco de dados. Verifique o console para mais detalhes.');
     }
   };
@@ -869,7 +878,7 @@ export default function App() {
       setAgencySettings(savedSettings);
       toast.success('Configurações salvas');
     } catch (err) {
-      console.error('Error saving settings:', err);
+      console.warn('Notice: Error saving settings:', err);
       toast.error('Erro ao salvar configurações');
     }
   };
@@ -881,7 +890,7 @@ export default function App() {
       setTasks([...tasks, savedTask]);
       toast.success('Tarefa salva no Supabase');
     } catch (err: any) {
-      console.error('Error adding task:', err);
+      console.warn('Notice: Error adding task:', err);
       toast.error('Erro no Supabase: ' + (err.message || 'Verifique se o cliente está cadastrado no banco.'));
     }
   };
@@ -893,7 +902,7 @@ export default function App() {
       setTasks(tasks.map(t => t.id === updatedTask.id ? savedTask : t));
       toast.success('Tarefa atualizada no Supabase');
     } catch (err: any) {
-      console.error('Error updating task:', err);
+      console.warn('Notice: Error updating task:', err);
       toast.error('Erro ao atualizar no Supabase: ' + (err.message || 'Erro desconhecido'));
     }
   };
@@ -920,7 +929,7 @@ export default function App() {
       
       toast.success('Tarefa excluída com sucesso');
     } catch (err: any) {
-      console.error('App: Error deleting task:', err);
+      console.warn('Notice: Error deleting task:', err);
       toast.error('Erro ao excluir tarefa: ' + (err.message || 'Erro no Supabase'));
     } finally {
       setIsLoading(false);

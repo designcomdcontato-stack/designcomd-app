@@ -151,7 +151,7 @@ export function EditorialLine({ client, onUpdate, onDelete }: EditorialLineProps
     try {
       await onDelete(id);
     } catch (err) {
-      console.error('Delete failed:', err);
+      console.warn('Notice: Delete failed in EditorialLine:', err);
     }
   };
 

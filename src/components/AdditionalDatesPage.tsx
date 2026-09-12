@@ -172,7 +172,7 @@ export function AdditionalDatesPage({ activeClient, dates, onAddDate, onAddDates
             });
             addedCount++;
           } else {
-            console.error('Falha na linha ' + (index + 1) + ':', { title, dateRaw, parsedDate });
+            console.warn('Notice: Falha na linha ' + (index + 1) + ':', { title, dateRaw, parsedDate });
             errorCount++;
           }
         });

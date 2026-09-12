@@ -39,7 +39,7 @@ export function SettingsPage({ settings, onUpdate, onUpdatePassword, currentUser
       const users = await supabaseService.getAuthorizedUsers();
       setAuthorizedUsers(users);
     } catch (err) {
-      console.error('Error fetching authorized users:', err);
+      console.warn('Notice: Error fetching authorized users:', err);
     }
   };
 
@@ -61,7 +61,7 @@ export function SettingsPage({ settings, onUpdate, onUpdatePassword, currentUser
       setNewAuthEmail('');
       toast.success('Usuário autorizado com sucesso!');
     } catch (err) {
-      console.error('Error adding authorized user:', err);
+      console.warn('Notice: Error adding authorized user:', err);
       toast.error('Erro ao autorizar usuário.');
     } finally {
       setIsAuthLoading(false);
@@ -79,7 +79,7 @@ export function SettingsPage({ settings, onUpdate, onUpdatePassword, currentUser
       setAuthorizedUsers(authorizedUsers.filter(u => u !== email));
       toast.success('Acesso removido com sucesso!');
     } catch (err) {
-      console.error('Error removing authorized user:', err);
+      console.warn('Notice: Error removing authorized user:', err);
       toast.error('Erro ao remover acesso.');
     }
   };

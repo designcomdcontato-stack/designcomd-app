@@ -1154,7 +1154,7 @@ export function FilesPage({ client, onUpdateClient }: FilesPageProps) {
       toast.dismiss();
       toast.success('Pasta excluída com sucesso!');
     } catch (err: any) {
-      console.error('Delete folder error:', err);
+      console.warn('Notice: Delete folder error:', err);
       toast.dismiss();
       toast.error('Erro ao excluir pasta: ' + (err.message || 'Erro desconhecido'));
     }
@@ -1203,7 +1203,7 @@ export function FilesPage({ client, onUpdateClient }: FilesPageProps) {
       toast.dismiss();
       toast.success(`${files.length} arquivo(s) adicionado(s).`);
     } catch (err: any) {
-      console.error('Upload error:', err);
+      console.warn('Notice: Upload error:', err);
       toast.dismiss();
       toast.error('Erro ao fazer upload: ' + (err.message || 'Erro desconhecido'));
     }
@@ -1232,7 +1232,7 @@ export function FilesPage({ client, onUpdateClient }: FilesPageProps) {
       });
       toast.success('Arquivo removido.');
     } catch (err: any) {
-      console.error('Delete error:', err);
+      console.warn('Notice: Delete error:', err);
       toast.error('Erro ao remover arquivo: ' + (err.message || 'Erro desconhecido'));
     }
   };

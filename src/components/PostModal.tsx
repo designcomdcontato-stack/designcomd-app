@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   CheckSquare, 
@@ -9,14 +9,12 @@ import {
   Target,
   Send,
   Trash2,
-  Image as ImageIcon,
   BarChart3,
   Plus,
   FileText
 } from 'lucide-react';
 import { Post, Client, PostStatus, PostFormat, EditorialItem, TeamMember } from '../types';
 import { cn, generateTempId } from '../lib/utils';
-import { supabaseService } from '../services/supabaseService';
 
 interface PostModalProps {
   post: Post;
@@ -45,39 +43,8 @@ export function PostModal({ post, client, team, onClose, onSave, onDelete }: Pos
     return { ...post };
   });
 
-  React.useEffect(() => {
-    let active = true;
-    if (post.id && !editedPost.image) {
-      supabaseService.getPostImage(post.id).then(img => {
-        if (active && img) {
-          setEditedPost(prev => ({ ...prev, image: img }));
-        }
-      }).catch(err => {
-        console.warn('PostModal: failed to load lazy image:', err);
-      });
-    }
-    return () => {
-      active = false;
-    };
-  }, [post.id]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [newComment, setNewComment] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditedPost({ ...editedPost, image: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const triggerImageUpload = () => {
-    fileInputRef.current?.click();
-  };
 
   const handleSave = () => {
     onSave(editedPost);
@@ -139,24 +106,6 @@ export function PostModal({ post, client, team, onClose, onSave, onDelete }: Pos
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditedPost({ ...editedPost, image: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
       <div 
@@ -167,7 +116,7 @@ export function PostModal({ post, client, team, onClose, onSave, onDelete }: Pos
         <div className="px-8 py-4 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-              <ImageIcon size={20} />
+              <FileText size={20} />
             </div>
             <div>
               <input 
@@ -196,40 +145,10 @@ export function PostModal({ post, client, team, onClose, onSave, onDelete }: Pos
         </div>
 
         <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row">
-          {/* Left Column: Content & Media */}
-          <div className="flex-1 p-8 space-y-8 border-r border-slate-100">
-            {/* Media Preview */}
-            <div 
-              className="aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer"
-              onClick={triggerImageUpload}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleImageUpload} 
-                className="hidden" 
-                accept="image/*"
-              />
-              {editedPost.image ? (
-                <>
-                  <img src={editedPost.image} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button className="bg-white text-slate-900 px-4 py-2 rounded-xl text-sm font-bold shadow-lg">Alterar Imagem</button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <ImageIcon size={48} className="text-slate-300 mb-4" />
-                  <p className="text-sm font-medium text-slate-500">Arraste uma imagem ou clique para upload</p>
-                  <p className="text-xs text-slate-400 mt-1">PNG, JPG até 10MB</p>
-                </>
-              )}
-            </div>
-
+          {/* Left Column: Content */}
+          <div className="flex-1 p-8 space-y-8 border-r border-slate-100 flex flex-col">
             {/* Description */}
-            <div className="space-y-3">
+            <div className="space-y-3 flex-1 flex flex-col min-h-[280px]">
               <label className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <FileText size={16} className="text-slate-400" />
                 Legenda / Descrição
@@ -237,8 +156,8 @@ export function PostModal({ post, client, team, onClose, onSave, onDelete }: Pos
               <textarea 
                 value={editedPost.description}
                 onChange={(e) => setEditedPost({ ...editedPost, description: e.target.value })}
-                className="w-full h-40 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
-                placeholder="Escreva a legenda do post aqui..."
+                className="w-full flex-1 min-h-[220px] p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 resize-y leading-relaxed"
+                placeholder="Escreva a legenda e direcionamento do post aqui..."
               />
             </div>
 

@@ -10,7 +10,6 @@ import { EditorialLine } from './components/EditorialLine';
 import { FollowerDiary } from './components/FollowerDiary';
 import { MetricsPage } from './components/MetricsPage';
 import { ImportPage } from './components/ImportPage';
-import { FeedView } from './components/FeedView';
 import { CalendarView } from './components/CalendarView';
 import { ProfilesPage } from './components/ProfilesPage';
 import { TeamPage } from './components/TeamPage';
@@ -983,8 +982,6 @@ export default function App() {
             onEditPost={setSelectedPost} 
           />
         );
-      case 'feed':
-        return <FeedView client={activeClient as Client} posts={posts} onEditPost={setSelectedPost} onUpdateClient={handleSaveClient} />;
       case 'calendar':
         return (
           <CalendarView 

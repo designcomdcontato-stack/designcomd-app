@@ -8,13 +8,11 @@ import {
   CheckSquare, 
   MessageSquare, 
   Paperclip, 
-  Image as ImageIcon,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 import { Post, Client, PostStatus, PostFormat, PostChannel } from '../types';
 import { cn, formatDate } from '../lib/utils';
-import { PostLazyImage } from './PostLazyImage';
 import { 
   format, 
   startOfMonth, 
@@ -151,27 +149,18 @@ export function Planning({ client, posts, onAddPost, onEditPost }: PlanningProps
                   onClick={() => onEditPost(post)}
                 >
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200">
-                        <PostLazyImage
-                          postId={post.id}
-                          className="w-full h-full object-cover"
-                          fallback={<ImageIcon size={20} />}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-slate-900 truncate max-w-[200px]">{post.title}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="flex items-center gap-1 text-[10px] text-slate-500">
-                            <CheckSquare size={10} /> {(post.checklist || []).filter(c => c.completed).length}/{(post.checklist || []).length}
-                          </span>
-                          <span className="flex items-center gap-1 text-[10px] text-slate-500">
-                            <MessageSquare size={10} /> {(post.comments || []).length}
-                          </span>
-                          <span className="flex items-center gap-1 text-[10px] text-slate-500">
-                            <Paperclip size={10} /> 0
-                          </span>
-                        </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate max-w-[280px]">{post.title}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                          <CheckSquare size={10} /> {(post.checklist || []).filter(c => c.completed).length}/{(post.checklist || []).length}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                          <MessageSquare size={10} /> {(post.comments || []).length}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                          <Paperclip size={10} /> 0
+                        </span>
                       </div>
                     </div>
                   </td>

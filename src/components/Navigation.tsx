@@ -3,7 +3,6 @@ import {
   LayoutDashboard, 
   Users, 
   Calendar, 
-  Grid, 
   BarChart3 as BarChartIcon, 
   FileText, 
   FolderOpen, 
@@ -188,7 +187,6 @@ export function Header({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'additional-dates', label: 'Datas Adicionais', icon: CalendarPlus },
     { id: 'calendar', label: 'Calendário', icon: Calendar },
-    { id: 'feed', label: 'Feed', icon: Grid },
     { id: 'metrics', label: 'Métricas', icon: BarChartIcon },
   ];
 

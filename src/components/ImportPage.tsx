@@ -249,14 +249,14 @@ export function ImportPage({ client, team, onImport }: ImportPageProps) {
             )}
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl flex gap-4">
-            <div className="text-amber-600 shrink-0">
+          <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-2xl flex gap-4">
+            <div className="text-indigo-600 shrink-0">
               <Info size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-amber-900 mb-1">Atenção sobre Imagens</h4>
-              <p className="text-sm text-amber-800 leading-relaxed">
-                Arquivos CSV não suportam o envio de imagens. Após a importação, você deverá acessar cada post individualmente para fazer o upload manual das mídias (fotos ou vídeos).
+              <h4 className="font-bold text-indigo-900 mb-1">Dica de Importação</h4>
+              <p className="text-sm text-indigo-800 leading-relaxed">
+                Os posts importados serão vinculados automaticamente ao perfil selecionado e integrados ao cronograma de planejamento e calendário.
               </p>
             </div>
           </div>

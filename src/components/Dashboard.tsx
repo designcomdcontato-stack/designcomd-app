@@ -28,7 +28,6 @@ import {
 } from 'recharts';
 import { Client, Post, CommemorativeDate, Task, TaskStatus, AgencySettings } from '../types';
 import { cn, formatDate, parseSafeDate } from '../lib/utils';
-import { PostLazyImage } from './PostLazyImage';
 import { getUpcomingCommemorativeDate, getManyUpcomingDates, getDatesInRange } from '../lib/holidayUtils';
 import { Star } from 'lucide-react';
 import { format } from 'date-fns';
@@ -462,7 +461,7 @@ export function Dashboard({ client, posts: propsPosts, tasks: propsTasks, commem
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-bold text-slate-900">Posts Recentes</h3>
             <button 
-              onClick={() => onNavigate('feed')}
+              onClick={() => onNavigate('planning')}
               className="text-sm font-semibold text-brand hover:opacity-80 transition-all"
             >
               Ver todos
@@ -482,18 +481,9 @@ export function Dashboard({ client, posts: propsPosts, tasks: propsTasks, commem
                   return (
                     <tr key={post.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-100 flex-shrink-0">
-                            <PostLazyImage
-                              postId={post.id}
-                              className="w-full h-full object-cover"
-                              fallback={<div className="w-full h-full bg-slate-100" />}
-                            />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-900 truncate max-w-[120px]">{post.title}</p>
-                            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">{post.format}</p>
-                          </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-900 truncate max-w-[200px]">{post.title}</p>
+                          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">{post.format}</p>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[11px] text-slate-600 font-medium">{formatDate(post.date)}</td>
